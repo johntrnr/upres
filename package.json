@@ -1,0 +1,9 @@
+{
+  "name": "upres",
+  "private": true,
+  "type": "module",
+  "description": "Upres: tiled creative upscaler PWA with Replicate diffusion and on-device Real-ESRGAN",
+  "devDependencies": {
+    "@netlify/functions": "^4.0.0"
+  }
+}
