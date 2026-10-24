@@ -1,5 +1,5 @@
 // Upres service worker: app shell works offline; models and TF.js are cached once; /api is never cached.
-const CACHE = 'upres-v5';
+const CACHE = 'upres-v6';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon-192.png', '/apple-touch-icon.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

@@ -684,13 +684,36 @@ async function api(method,qs,body){
   if(!r.ok){
     let msg=j.message;
     if(!msg)msg=r.status===404?'The Upres server function was not found (404). The latest deploy may still be publishing; try again in a minute.':r.status===413?'The image is too large to send.':r.status>=500?`The Upres server failed (${r.status}). Try again.`:`Server error ${r.status}.`;
-    const e=new Error(msg);e.code=j.error;e.status=r.status;throw e;
+    const e=new Error(msg);e.code=j.error;e.status=r.status;e.retryAfter=j.retry_after||null;throw e;
   }
   return j;
 }
 const enc=encodeURIComponent;
-async function repRun(run,model,input,onStatus){
-  let st=await api('POST','',{model,input});
+// Replicate caps how fast new predictions can start (as low as 1/s and 6/min on accounts with a low
+// balance or no card). All starts go through this pacer; after a 429 it slows to fit and retries.
+const RL={slow:false,next:0,last429:0};
+async function waitPaced(run,ms,onWait){
+  const end=Date.now()+ms;
+  while(Date.now()<end){if(run.cancel)throw cancelled();onWait&&onWait(Math.ceil((end-Date.now())/1000));await sleep(Math.min(1000,end-Date.now()));}
+}
+async function startPrediction(run,model,input,onWait){
+  for(let attempt=0;;attempt++){
+    if(RL.slow&&Date.now()-RL.last429>10*60e3)RL.slow=false;
+    const gap=RL.next-Date.now();if(gap>0)await waitPaced(run,gap,onWait);
+    if(run.cancel)throw cancelled();
+    RL.next=Date.now()+(RL.slow?10500:1100);
+    try{return await api('POST','',{model,input});}
+    catch(e){
+      if(e.status!==429||attempt>=12)throw e;
+      RL.slow=true;RL.last429=Date.now();
+      const wait=((e.retryAfter||30)+1+Math.random()*2)*1000;
+      RL.next=Math.max(RL.next,Date.now()+wait);
+    }
+  }
+}
+const pacedMsg=s=>`Replicate is pacing this account · next start in ${s}s`;
+async function repRun(run,model,input,onStatus,onWait){
+  let st=await startPrediction(run,model,input,onWait);
   if(!st.id)throw new Error('Replicate did not accept the request.');
   run.reqs.add(st.id);
   try{
@@ -703,7 +726,7 @@ async function repRun(run,model,input,onStatus){
       if(run.cancel)throw cancelled();
       await sleep(delay);delay=Math.min(2500,delay*1.2);
       if(run.cancel)throw cancelled();
-      try{st=await api('GET','?id='+enc(st.id));}catch(e){if(e.status===0||e.status>=500)continue;throw e;}
+      try{st=await api('GET','?id='+enc(st.id));}catch(e){if(e.status===0||e.status>=500)continue;if(e.status===429){await waitPaced(run,5000);continue;}throw e;}
     }
   }finally{run.reqs.delete(st.id);}
 }
@@ -1106,21 +1129,23 @@ function placeTile(ctx,t,bmp,baseC,pl,noRamp){
 async function magnifyTiles(run,pl,baseC,ctx){
   const tiles=pl.tiles,k=pl.fw/pl.bw,conc=Math.min(4,tiles.length);
   run.phase='magnify';run.st={};run.phaseTiles=tiles.map(t=>({id:t.id,x:t.x*k,y:t.y*k,w:t.w*k,h:t.h*k}));drawGrid();
-  let next=0,drawIdx=0,started=0;const pending=new Map(),states={};
-  const msg=()=>{const busy=Object.values(states);const running=busy.filter(s=>s==='running').length,queued=busy.filter(s=>s!=='running').length;stageMsg(`<b>Magnify</b> · ${drawIdx} of ${tiles.length} tiles${running?` · ${running} rendering`:''}${queued?` · ${queued} starting`:''}`);$('#prog').style.width=(drawIdx/tiles.length*100)+'%';};
+  let next=0,drawIdx=0,started=0,paced=0;const pending=new Map(),states={};
+  const msg=()=>{const busy=Object.values(states);const running=busy.filter(s=>s==='running').length,queued=busy.filter(s=>s!=='running').length;stageMsg(`<b>Magnify</b> · ${drawIdx} of ${tiles.length} tiles${running?` · ${running} rendering`:''}${queued?` · ${queued} starting`:''}${paced?` · paced by Replicate, next in ${paced}s`:''}`);$('#prog').style.width=(drawIdx/tiles.length*100)+'%';};
   const flush=()=>{while(pending.has(drawIdx)){const {t,bmp}=pending.get(drawIdx);pending.delete(drawIdx);placeTile(ctx,t,bmp,baseC,pl,false);stCls(t.id,'d');drawIdx++;}msg();};
-  const worker=async()=>{
+  let active=0;
+  const worker=async(wi)=>{active++;
     while(next<tiles.length){
       if(run.cancel)throw cancelled();
+      if(RL.slow&&wi>0&&active>1){active--;return;}
       const t=tiles[next++];stCls(t.id,'a');states[t.id]='queued';msg();
       const img=await encode(baseC,t.x,t.y,t.w,t.h);
-      const res=await repRun(run,M[P.magnify.engine].id,tileInput(img,t),st=>{states[t.id]=st.status==='processing'?'running':'queued';msg();});
+      const res=await repRun(run,M[P.magnify.engine].id,tileInput(img,t),st=>{states[t.id]=st.status==='processing'?'running':'queued';msg();},s2=>{paced=s2;msg();});paced=0;
       const url=outUrl(res);if(!url)throw new Error('FLUX returned no image for tile '+(t.id+1)+'.');
       const bmp=await loadRemote(url);delete states[t.id];
       pending.set(t.id,{t,bmp});flush();
     }
   };
-  try{await Promise.all(Array.from({length:conc},worker));}
+  try{await Promise.all(Array.from({length:conc},(_,i)=>worker(i)));}
   catch(e){run.cancel=true;throw e;}
 }
 
@@ -1138,7 +1163,7 @@ async function getRestored(run,pl){
   stageMsg(`<b>Restore</b> · ${m.name} · uploading`);
   const img=await encode(src,0,0,pl.iw,pl.ih);
   const input={image:img,prompt};if(P.restore.model==='nano')input.resolution=P.restore.res;
-  const res=await repRun(run,m.id,input,(st,sec)=>stageMsg(`<b>Restore</b> · ${m.name} · ${qText(st,sec)}`));
+  const res=await repRun(run,m.id,input,(st,sec)=>stageMsg(`<b>Restore</b> · ${m.name} · ${qText(st,sec)}`),s2=>stageMsg(`<b>Restore</b> · ${pacedMsg(s2)}`));
   const url=outUrl(res);if(!url)throw new Error(m.name+' returned no image. It may have refused the photo; try another restore model.');
   stageMsg(`<b>Restore</b> · downloading`);
   const bmp=await loadRemote(url);const c=canvasOf(bmp);
@@ -1154,7 +1179,7 @@ async function getBase(run,pl,cur){
     const img=cur.url||await encode(cur.canvas,0,0,cur.w,cur.h);
     const f=+pl.baseFactor.toFixed(4);
     const input=P.upscale.model==='seedvr'?{image:img,variant:P.upscale.variant,colorfix:!!P.upscale.colorfix,steps:1,guidance:1}:{image:img,scale:f,creativity:+P.upscale.crystal};
-    const res=await repRun(run,m.id,input,(st,sec)=>stageMsg(`<b>Upscale</b> · ${m.name} · ${qText(st,sec)}`));
+    const res=await repRun(run,m.id,input,(st,sec)=>stageMsg(`<b>Upscale</b> · ${m.name} · ${qText(st,sec)}`),s2=>stageMsg(`<b>Upscale</b> · ${pacedMsg(s2)}`));
     const url=outUrl(res);if(!url)throw new Error(m.name+' returned no image.');
     stageMsg(`<b>Upscale</b> · downloading`);
     c=canvasOf(await loadRemote(url),pl.bw,pl.bh);
@@ -1217,7 +1242,7 @@ async function preview(){
     run.phase='magnify';run.st={};const k=pl.fw/pl.bw;run.phaseTiles=[{id:0,x:t.x*k,y:t.y*k,w:t.w*k,h:t.h*k}];drawGrid();stCls(0,'a');
     stageMsg('<b>Preview</b> · uploading tile');
     const img=await encode(base,t.x,t.y,t.w,t.h);
-    const res=await repRun(run,M[P.magnify.engine].id,tileInput(img,t),(st,sec)=>stageMsg(`<b>Preview</b> · ${M[P.magnify.engine].name} · ${qText(st,sec)}`));
+    const res=await repRun(run,M[P.magnify.engine].id,tileInput(img,t),(st,sec)=>stageMsg(`<b>Preview</b> · ${M[P.magnify.engine].name} · ${qText(st,sec)}`),s2=>stageMsg(`<b>Preview</b> · ${pacedMsg(s2)}`));
     const bmp=await loadRemote(outUrl(res));
     if(RUN!==run)return;
     previewRect=placeTile(ctx,t,bmp,base,pl,true);

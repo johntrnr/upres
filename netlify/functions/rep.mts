@@ -48,7 +48,7 @@ type Spec = { type?: string; items?: any; enum?: unknown[]; min?: number; max?: 
 type Info = { version: string | null; inputs: Record<string, Spec>; at: number }
 const cache = new Map<string, Info>()
 
-class HttpError extends Error { constructor(public status: number, public code: string, msg: string) { super(msg) } }
+class HttpError extends Error { constructor(public status: number, public code: string, msg: string, public retryAfter?: number) { super(msg) } }
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } })
 
@@ -73,7 +73,10 @@ function toError(status: number, body: any) {
   const detail = String(body?.detail || body?.title || `Replicate returned ${status}`)
   if (status === 401) return new HttpError(401, "bad_token", "Replicate rejected the token. Check it in Account.")
   if (status === 402) return new HttpError(402, "billing", "Your Replicate account needs credit or a payment method (replicate.com/account/billing).")
-  if (status === 429) return new HttpError(429, "rate_limited", "Replicate is rate limiting this account. Wait a moment and try again.")
+  if (status === 429) {
+    const m = detail.match(/(\d+)\s*s/)
+    return new HttpError(429, "rate_limited", "Replicate is pacing this account. Upres waits and continues automatically.", m ? Number(m[1]) : 30)
+  }
   if (status === 422) return new HttpError(422, "invalid_input", detail)
   if (status === 404) return new HttpError(404, "not_found", detail)
   return new HttpError(502, "replicate_error", detail)
@@ -193,7 +196,7 @@ export default async (req: Request) => {
     }
     return json({ error: "method", message: "Unsupported request." }, 405)
   } catch (e: any) {
-    if (e instanceof HttpError) return json({ error: e.code, message: e.message }, e.status)
+    if (e instanceof HttpError) return json({ error: e.code, message: e.message, retry_after: e.retryAfter ?? null }, e.status)
     return json({ error: "server", message: "The Upres server hit an unexpected error." }, 500)
   }
 }
