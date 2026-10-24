@@ -1,27 +1,30 @@
 # Upres
 
-Tiled creative upscaler PWA. Monochrome, phone-first.
+Tiled creative upscaler and photo restorer. Monochrome, phone-first PWA on Netlify, models on fal.ai.
 
-- **Clarity diffusion** (cloud): Stable Diffusion tiled upscaling via Replicate's `philz1337x/clarity-upscaler`, billed to your Replicate account (about $0.02 a run).
-- **Real-ESRGAN** General / Anime (on device): runs on the phone GPU with TensorFlow.js, free and offline.
-- Local tile pipeline after either model: Enhance, Color, Creative (detail, painterly, ink, glitch), feather-blended seams.
+## Pipeline
+
+| Stage | What it does | Models (fal.ai) |
+|---|---|---|
+| Restore | Repairs damage, colorizes, or rebuilds an old photo as a modern realistic one | Nano Banana Pro edit · FLUX.1 Kontext Pro · FLUX.1 Kontext Max |
+| Upscale | Faithful base enlargement to the final size (half of it when Magnify is on) | SeedVR2 · Crystal Upscaler · local resize |
+| Magnify | Splits the base into evenly sized, overlapping tiles; FLUX Vision Upscaler captions and re-renders each tile at 2×; tiles are colour-locked to the base and feather-blended | FLUX Vision Upscaler |
+| Finish | Sharpen, clarity, grain, looks, on device (Web Workers) | none |
+
+Restore and Upscale results are cached per image and settings, so tuning Magnify only pays for the tiles. The Run button shows a cost estimate; **Preview** magnifies the single tile at the centre of the view.
 
 ## Setup
 
-1. Deploy on Netlify from this repo. No build command; publish directory is `public`, functions live in `netlify/functions`.
-2. Open the site, go to **Model → Clarity diffusion**, paste a Replicate API token from https://replicate.com/account/api-tokens and tap **Connect**.
-3. On iPhone: Share → Add to Home Screen for the full-screen app.
+1. Deploy on Netlify from this repo (no build command; publish `public`, functions in `netlify/functions`).
+2. Create a key at https://fal.ai/dashboard/keys and add credit.
+3. In the app: ⋯ → fal.ai key → paste → Connect. The key stays on the device and is only sent to this site's `/api/fal` function.
 
-The token is stored only on your device and sent to your own `/api/diffuse` function, which forwards it to Replicate.
-
-### Optional: server-held token
-
-Set `REPLICATE_API_TOKEN` and `UPRES_PASSCODE` as environment variables in Netlify (Functions scope). Requests that send the passcode in the `x-upres-pass` header use the server token. Without both variables set, no server token is ever used.
+Optional server-held key: set `FAL_KEY` and `UPRES_PASSCODE` in Netlify; requests that send the passcode in `x-upres-pass` use it.
 
 ## Endpoints
 
-- `GET /api/diffuse?schema=1` — verifies the token and returns the model's live input schema
-- `POST /api/diffuse` — `{ image: dataURL, input: {...} }` starts a prediction (inputs are validated against the schema)
-- `GET /api/diffuse?id=…` — status, progress and output
-- `DELETE /api/diffuse?id=…` — cancel
-- `GET /api/img?u=…` — streams a finished `replicate.delivery` image back same-origin
+- `POST /api/fal` `{ model, input }` — submit to an allow-listed fal model
+- `GET /api/fal?status=<url>` / `?result=<url>` — queue status (with logs) and result
+- `DELETE /api/fal?cancel=<url>` — cancel
+- `GET /api/fal?check=1` — key check
+- `GET /api/img?u=<url>` — streams a fal.media image back same-origin

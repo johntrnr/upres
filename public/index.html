@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Upres</title>
-<meta name="description" content="Tiled creative upscaler: cloud diffusion and on-device Real-ESRGAN.">
+<meta name="description" content="Tiled creative upscaler and photo restorer: SeedVR2, FLUX and Nano Banana Pro.">
 <meta name="theme-color" content="#0a0a0a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -15,6 +15,7 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
 <style>
+
 /* Layout: full-bleed image viewport; pipeline tab strip + one control panel docked below (phone) or as a right inspector (desktop). Monochrome by intent. */
 :root{
   --bg:#0a0a0a;
@@ -186,6 +187,34 @@ textarea::placeholder{color:var(--fg-3)}
 .sheet img{flex:1;min-height:0;width:100%;object-fit:contain}
 .sheet p{margin:0;text-align:center;color:var(--fg-2)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+@media (min-width:960px){.dock{grid-template-rows:auto auto minmax(0,1fr) auto!important}}
+.panel{max-height:min(36vh,360px)}
+
+/* --- v4 additions --- */
+.recipes{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-block:10px 2px;padding-left:max(16px, env(safe-area-inset-left,0px));padding-right:max(16px, env(safe-area-inset-right,0px));flex:none}
+.recipes::-webkit-scrollbar{display:none}
+.rc{flex:none;height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--line-2);background:var(--raise);color:var(--fg-2);font-size:12.5px;font-weight:500;white-space:nowrap}
+.rc:hover{color:var(--fg);background:var(--raise-2)}
+.rc[aria-pressed="true"]{background:var(--fg);color:var(--ink);border-color:var(--fg)}
+.rc.lbl{border:0;background:none;padding:0 4px 0 0;color:var(--fg-3);font-weight:400;cursor:default}
+@media (min-width:960px){.dock .recipes{order:-2;flex-wrap:wrap;overflow:visible;border-bottom:1px solid var(--line);padding-block:12px}}
+.btn.pri .cost{font:500 12px var(--f-mono);opacity:.6;margin-left:2px}
+.stagechip{display:flex;gap:8px;align-items:center;color:var(--fg)}
+.modal{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.72);display:flex;align-items:flex-end;justify-content:center}
+@media (min-width:600px){.modal{align-items:center}}
+.sheet2{width:100%;max-width:440px;background:var(--raise);border:1px solid var(--line-2);border-radius:18px 18px 0 0;padding:20px max(18px, env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 18px) max(18px, env(safe-area-inset-left,0px));display:grid;gap:14px;box-shadow:0 -20px 60px rgba(0,0,0,.6)}
+@media (min-width:600px){.sheet2{border-radius:18px;padding-bottom:20px}}
+.sheet2 h3{margin:0;font-size:17px;font-weight:600}
+.sheet2 p{margin:0;color:var(--fg-3);font-size:13px;line-height:1.45}
+.sheet2 a{color:var(--fg);text-underline-offset:2px}
+.sheet2 .row2{display:flex;gap:8px;justify-content:flex-end}
+.pill{display:inline-flex;align-items:center;gap:6px;font:500 11px var(--f-mono);color:var(--fg-2);border:1px solid var(--line);border-radius:999px;padding:3px 8px}
+.pill.on{color:var(--fg);border-color:var(--line-2)}
+.costs{display:grid;grid-template-columns:1fr auto;gap:4px 14px;font-size:12px;color:var(--fg-3);border-top:1px solid var(--line);padding-top:10px}
+.costs dd{margin:0;text-align:right;font:500 11.5px var(--f-mono);color:var(--fg-2)}
+.costs .tot{color:var(--fg);font-weight:600}
+.card .tagc{font:500 10.5px var(--f-mono);color:var(--fg-3);margin-left:6px}
 </style>
 </head>
 <body>
@@ -196,7 +225,7 @@ textarea::placeholder{color:var(--fg-3)}
     <button class="ib" id="bBefore" title="Hold to see the original" aria-label="Hold to see the original"><svg class="i" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
     <button class="ib" id="bSplit" aria-pressed="false" title="Split before / after" aria-label="Split before and after"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/></svg></button>
     <details class="menu" id="menu">
-      <summary class="ib" aria-label="Presets and workflow"><svg class="i" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></summary>
+      <summary class="ib" aria-label="Account and workflow"><svg class="i" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></summary>
       <div class="pop" id="menuPop"></div>
     </details>
   </header>
@@ -210,7 +239,7 @@ textarea::placeholder{color:var(--fg-3)}
     <div class="split" id="split" hidden><i></i></div>
     <span class="tag l" id="tagB" hidden>Before</span>
     <span class="tag r" id="tagA" hidden>After</span>
-    <div class="hud tc" id="hudLoad" hidden><span class="chip load"><span class="spin"></span><span id="loadTxt">Loading model</span></span></div>
+    <div class="hud tc" id="hudLoad" hidden><span class="chip load"><span class="spin"></span><span id="loadTxt"></span></span></div>
     <div class="hud bl"><span class="chip" id="hudDims"></span></div>
     <div class="hud br"><button class="chip" id="hudZoom" title="Double-tap the image to toggle fit / 100%">Fit</button></div>
     <div class="prog"><i id="prog"></i></div>
@@ -219,14 +248,26 @@ textarea::placeholder{color:var(--fg-3)}
   </section>
 
   <section class="dock" aria-label="Pipeline">
+    <div class="recipes" id="recipes" aria-label="Recipes"></div>
     <div class="panel" id="panel"></div>
-    <nav class="tabs" id="tabs" role="tablist" aria-label="Pipeline steps"></nav>
+    <nav class="tabs" id="tabs" role="tablist" aria-label="Pipeline stages"></nav>
     <div class="actions">
-      <button class="btn" id="bPreview" title="Render the tile at the centre of the view">Preview</button>
-      <button class="btn pri" id="bRun">Upscale</button>
+      <button class="btn" id="bPreview" title="Magnify the tile at the centre of the view">Preview</button>
+      <button class="btn pri" id="bRun"><span id="runLbl">Run</span><span class="cost" id="runCost"></span></button>
       <button class="btn sq" id="bSave" disabled title="Save image" aria-label="Save image"><svg class="i" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button>
     </div>
   </section>
+</div>
+
+<div class="modal" id="acct" hidden>
+  <div class="sheet2" role="dialog" aria-modal="true" aria-labelledby="acctT">
+    <h3 id="acctT">fal.ai account</h3>
+    <p>Upres runs SeedVR2, FLUX and Nano Banana Pro on fal.ai with your own key. Create one at <a href="https://fal.ai/dashboard/keys" target="_blank" rel="noopener">fal.ai/dashboard/keys</a>, and add credit at <a href="https://fal.ai/dashboard/billing" target="_blank" rel="noopener">fal.ai/dashboard/billing</a>.</p>
+    <div class="seed"><input id="keyIn" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste your fal API key"><button class="btn sm" id="keyPaste" hidden>Paste</button></div>
+    <p id="keyState"></p>
+    <p>The key stays on this device. It is only sent to your own Upres server, which forwards it to fal. Runs are billed to your fal account.</p>
+    <div class="row2"><button class="btn sm" id="keyClear">Remove key</button><button class="btn sm" id="keyClose">Close</button><button class="btn sm pri" id="keySave">Connect</button></div>
+  </div>
 </div>
 
 <input type="file" id="fileIn" accept="image/*" hidden>
@@ -459,241 +500,207 @@ function processTile(job,p){
 <script>
 (()=>{
 const $=s=>document.querySelector(s);
-const LS='upres.v3',LSUI='upres.ui.v3';
-const f2=v=>(+v).toFixed(2),sg=v=>(v>0?'+':'')+(+v).toFixed(2),pct=v=>Math.round(v*100)+'%',pxf=v=>(+v)+' px';
-const NEURAL=m=>m==='esrgan'||m==='esrgan-anime';
-const DIFF=m=>m==='diffusion';
 const esc=v=>String(v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const METHODS=[['diffusion','Clarity diffusion','Stable Diffusion on a cloud GPU · invents new detail · about $0.02 a run'],['esrgan','Real-ESRGAN General','Neural · photos, noise, JPEG artifacts'],['esrgan-anime','Real-ESRGAN Anime','Neural · illustration, line art, flat colour'],['lanczos','Lanczos','Classic · sharp and fast'],['bicubic','Bicubic','Classic · soft, no ringing'],['nearest','Nearest','Classic · pixel art']];
+const LS='upres.v4',LSUI='upres.ui.v4',LSKEY='upres.falkey';
+const f2=v=>(+v).toFixed(2),sg=v=>(v>0?'+':'')+(+v).toFixed(2),pct=v=>Math.round(v*100)+'%',pxf=v=>(+v)+' px';
+const money=v=>v<=0?'free':v<0.01?'< $0.01':'≈ $'+(v<1?v.toFixed(2):v.toFixed(2));
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+/* ---------- models ---------- */
+const M={
+  nano:{id:'fal-ai/nano-banana-pro/edit',name:'Nano Banana Pro',desc:'Google · keeps faces and identity best · up to 4K',tag:'$0.15'},
+  kontext:{id:'fal-ai/flux-pro/kontext',name:'FLUX.1 Kontext Pro',desc:'Black Forest Labs · fast, natural repair · about 1 MP',tag:'$0.04'},
+  kontextmax:{id:'fal-ai/flux-pro/kontext/max',name:'FLUX.1 Kontext Max',desc:'Black Forest Labs · strongest instruction following · about 1 MP',tag:'$0.08'},
+  seedvr:{id:'fal-ai/seedvr/upscale/image',name:'SeedVR2',desc:'ByteDance · faithful, clears blur and noise',tag:'$0.001/MP',perMP:.001},
+  crystal:{id:'clarityai/crystal-upscaler',name:'Crystal',desc:'ClarityAI · portraits and facial detail',tag:'$0.016/MP',perMP:.016},
+  local:{name:'Local resize',desc:'Free, on device · fine when Magnify does the work',tag:'free',perMP:0},
+  flux:{id:'fal-ai/flux-vision-upscaler',name:'FLUX Vision',perMP:.10},
+};
+const restoreCost=p=>p.restore.model==='nano'?(p.restore.res==='4K'?.30:.15):p.restore.model==='kontext'?.04:.08;
+const PROMPTS={
+  repair:'Restore this damaged old photograph. Remove scratches, dust, spots, creases, tears, stains and fading, and repair any missing areas. Keep the exact composition, framing, people, faces, expressions, clothing, objects and lighting. It must still look like a real photograph, not a painting or illustration.',
+  color:'Restore this damaged old photograph and colorize it. Remove scratches, dust, spots, creases, tears, stains and fading, and repair any missing areas. Use natural, realistic, historically plausible colors and skin tones. Keep the exact composition, people, faces, expressions, clothing and lighting. It must look like a real color photograph.',
+  realism:'Transform this old photograph into a modern, high-detail photorealistic color photograph, as if taken today on a professional full-frame camera with a sharp prime lens: natural skin texture and pores, realistic hair and fabric detail, accurate natural colors, real lighting and depth. Remove all damage, grain, blur and fading. Keep every person\'s identity, face, expression, pose and clothing, and the overall composition, exactly the same.',
+  clean:'Clean up this photo: remove noise, compression artifacts, blur and haze, and recover fine natural detail and texture. Keep the content, composition, colors and lighting exactly the same. Photorealistic.',
+};
+const MODES=[['realism','Realism'],['color','Repair + color'],['repair','Repair'],['clean','Clean up'],['custom','Custom']];
 const LOOKS=[['none','None'],['warm','Warm print'],['chrome','Cold chrome'],['bleach','Bleach bypass'],['cross','Cross process'],['mono','Mono'],['redisolate','Red isolate'],['tealorange','Teal & orange']];
 
 const STEPS=[
-  {id:'source',label:'Source',title:'Source',desc:'The image to upscale. Everything runs on this device.',custom:'source'},
-  {id:'model',label:'Model',title:'Upscale model',desc:'Clarity diffusion runs on Replicate. Real-ESRGAN and the classic filters run on this phone.',widgets:[
-    {k:'method',type:'cards',options:METHODS},
-    {k:'_cloud',type:'cloud',when:p=>DIFF(p.model.method)},
-    {k:'scale',type:'seg',label:'Scale',options:[[1,'1×'],[1.5,'1.5×'],[2,'2×'],[3,'3×'],[4,'4×'],[6,'6×'],[8,'8×']]},
-    {k:'prompt',g:'diff',type:'text',rows:3,label:'Prompt',ai:false,hint:'Describes what detail to invent. The default suits most photos.',when:p=>DIFF(p.model.method)},
-    {k:'negative',g:'diff',type:'text',rows:2,label:'Negative prompt',ai:false,when:p=>DIFF(p.model.method)},
-    {k:'creativity',g:'diff',type:'range',label:'Creativity',min:0,max:1,step:.01,fmt:f2,hint:'How much new detail is invented. 0.3–0.9 is the useful range.',when:p=>DIFF(p.model.method)},
-    {k:'resemblance',g:'diff',type:'range',label:'Resemblance',min:0,max:3,step:.05,fmt:f2,hint:'How closely the result keeps the original structure. 0.3–1.6 is the useful range.',when:p=>DIFF(p.model.method)},
-    {k:'dynamic',g:'diff',type:'range',label:'HDR',min:1,max:20,step:.5,fmt:v=>(+v).toFixed(1),hint:'Contrast and depth of the diffusion pass. 3–9 suggested.',when:p=>DIFF(p.model.method)},
-    {k:'steps',g:'diff',type:'range',label:'Steps',min:6,max:50,step:1,fmt:v=>String(v),hint:'More steps are slower and cost a little more.',when:p=>DIFF(p.model.method)},
-    {k:'inputMax',g:'diff',type:'seg',label:'Input sent to the cloud, long side',options:[[512,'512'],[768,'768'],[1024,'1024'],[1536,'1536']],hint:'Bigger inputs keep more of the original and cost more.',when:p=>DIFF(p.model.method)},
-    {k:'tw',g:'diff',type:'enum',f:'tiling_width',label:'Fractality · tile width',ai:false,hint:'Smaller diffusion tiles give more intricate, fractal detail.',when:p=>DIFF(p.model.method)},
-    {k:'th',g:'diff',type:'enum',f:'tiling_height',label:'Fractality · tile height',ai:false,when:p=>DIFF(p.model.method)},
-    {k:'sd_model',g:'diff',type:'enum',f:'sd_model',label:'Checkpoint',ai:false,when:p=>DIFF(p.model.method)},
-    {k:'scheduler',g:'diff',type:'enum',f:'scheduler',label:'Scheduler',ai:false,when:p=>DIFF(p.model.method)},
-    {k:'handfix',g:'diff',type:'enum',f:'handfix',label:'Hand fix',ai:false,when:p=>DIFF(p.model.method)},
-    {k:'sharpen',g:'diff',type:'range',label:'Cloud sharpen',min:0,max:10,step:.5,fmt:v=>(+v).toFixed(1),when:p=>DIFF(p.model.method)},
-    {k:'seed',type:'seed',label:'Seed',ai:false,when:p=>DIFF(p.model.method)},
-    {k:'dni',type:'range',label:'Model denoise',min:0,max:1,step:.05,fmt:pct,hint:'0% keeps grain and texture. 100% cleans noise hard.',when:p=>p.model.method==='esrgan'},
-    {k:'blend',type:'range',label:'Model strength',min:0,max:1,step:.05,fmt:pct,hint:'Mixes the neural result with a plain Lanczos resize.',when:p=>NEURAL(p.model.method)},
+  {id:'source',label:'Source',title:'Source',desc:'The photo to work on. Nothing leaves this device except what you send to the models.',custom:'source'},
+  {id:'restore',label:'Restore',title:'Restore',desc:'Repairs damage and can rebuild an old photo as a modern, realistic one. The result is cached, so changing later stages does not run it again.',bypass:true,widgets:[
+    {k:'model',type:'cards',options:['nano','kontext','kontextmax']},
+    {k:'mode',type:'seg',label:'Mode',options:MODES},
+    {k:'extra',type:'text',rows:2,label:'Extra instructions',ph:'e.g. 1950s Paris, red dress, blue Citroën, warm evening light',hint:'Colours, era or details you know. In Custom mode this is the whole prompt.'},
+    {k:'res',type:'seg',label:'Output resolution',options:[['1K','1K'],['2K','2K'],['4K','4K · 2× price']],when:p=>p.restore.model==='nano'},
+  ]},
+  {id:'upscale',label:'Upscale',title:'Upscale',desc:'Sets the final size. The base model enlarges faithfully; Magnify then re-renders detail tile by tile on top.',widgets:[
+    {k:'scale',type:'seg',label:'Final scale',options:[[1.5,'1.5×'],[2,'2×'],[3,'3×'],[4,'4×'],[6,'6×'],[8,'8×']]},
+    {k:'model',type:'cards',options:['seedvr','crystal','local']},
+    {k:'noise',type:'range',label:'Noise scale',min:0,max:1,step:.01,fmt:f2,hint:'Higher adds texture, lower stays cleaner.',when:p=>p.upscale.model==='seedvr'},
+    {k:'crystal',type:'range',label:'Creativity',min:0,max:10,step:.5,fmt:v=>(+v).toFixed(1),hint:'0 is faithful. Raise it for more rebuilt facial detail.',when:p=>p.upscale.model==='crystal'},
     {k:'maxSide',type:'seg',label:'Max output, long side',options:[[2048,'2048'],[3072,'3072'],[4096,'4096']]},
-    {k:'fit',type:'seg',label:'If the result exceeds the max',options:[['scale','Shrink input first'],['input','Lower the scale']]},
-  ],custom:'model'},
-  {id:'tiles',label:'Tiles',title:'Tiled processing',desc:()=>DIFF(P.model.method)?'Diffusion tiles run in the cloud (see Fractality in Model). These tiles drive the local Enhance, Color and Creative steps that run after it.':'The image is split into overlapping tiles, processed one by one, and blended back together.',widgets:[
-    {k:'size',type:'seg',label:'Tile size',options:[[256,'256'],[384,'384'],[512,'512'],[768,'768']]},
-    {k:'overlap',type:'range',label:'Overlap',min:0,max:128,step:8,fmt:pxf,hint:'Pixels shared by neighbouring tiles; more hides seams.'},
-    {k:'feather',type:'seg',label:'Seam blend',options:[['smooth','Smooth'],['linear','Linear'],['none','Hard cut']]},
+  ],custom:'facts'},
+  {id:'magnify',label:'Magnify',title:'Magnify · tiled FLUX',desc:'Splits the image into overlapping tiles. FLUX captions each tile and re-renders it at 2× with new detail; tiles are colour-locked to the base and feather-blended.',bypass:true,widgets:[
+    {k:'creativity',type:'range',label:'Creativity',min:0,max:1,step:.01,fmt:f2,hint:'0.2 subtle · 0.35 balanced · 0.6+ reimagined.'},
+    {k:'blend',type:'range',label:'Strength',min:0,max:1,step:.05,fmt:pct,hint:'How much of each FLUX tile replaces the base. Lower it to protect faces and text.'},
+    {k:'guidance',type:'range',label:'Guidance',min:1,max:4,step:.1,fmt:v=>(+v).toFixed(1)},
+    {k:'steps',type:'range',label:'Steps',min:4,max:50,step:1,fmt:v=>String(v)},
+    {k:'tile',type:'seg',label:'Tile size',options:[[512,'512'],[768,'768'],[1024,'1024']],hint:'Smaller tiles give each area more attention and finer detail, with more tiles to pay for.'},
+    {k:'overlap',type:'range',label:'Overlap',min:32,max:192,step:16,fmt:pxf,hint:'Shared pixels between neighbouring tiles. More hides seams.'},
+    {k:'colorLock',type:'switch',label:'Lock tile colours to the base'},
     {k:'grid',type:'switch',label:'Show tile grid',ai:false},
-  ],custom:'tiles'},
-  {id:'enhance',label:'Enhance',title:'Enhance',desc:'Per-tile restoration after the model.',bypass:true,widgets:[
-    {k:'denoise',type:'range',label:'Denoise',min:0,max:1,step:.01,fmt:f2},
-    {k:'sharpen',type:'range',label:'Sharpen',min:0,max:2,step:.05,fmt:f2},
-    {k:'radius',type:'range',label:'Radius',min:1,max:4,step:1,fmt:pxf},
-    {k:'threshold',type:'range',label:'Threshold',min:0,max:12,step:1,fmt:v=>String(v)},
-    {k:'clarity',type:'range',label:'Clarity',min:-1,max:1,step:.05,fmt:sg,hint:'Local contrast. Negative values soften into a glow.'},
-  ],grid:['denoise','sharpen','radius','threshold']},
-  {id:'modify',label:'Color',title:'Color & tone',desc:'Grading applied inside every tile.',bypass:true,widgets:[
+    {k:'seed',type:'seed',label:'Seed'},
+  ],grid:['guidance','steps'],custom:'facts'},
+  {id:'finish',label:'Finish',title:'Finish',desc:'Free final touches, rendered on this device.',bypass:true,widgets:[
     {k:'look',type:'select',label:'Look',options:LOOKS},
-    {k:'lookAmt',type:'range',label:'Look amount',min:0,max:1,step:.05,fmt:pct,when:p=>p.modify.look!=='none'},
-    {k:'exposure',type:'range',label:'Exposure',min:-2,max:2,step:.05,fmt:v=>sg(v)+' EV'},
-    {k:'contrast',type:'range',label:'Contrast',min:-1,max:1,step:.05,fmt:sg},
-    {k:'highlights',type:'range',label:'Highlights',min:-1,max:1,step:.05,fmt:sg},
-    {k:'shadows',type:'range',label:'Shadows',min:-1,max:1,step:.05,fmt:sg},
-    {k:'saturation',type:'range',label:'Saturation',min:-1,max:1,step:.05,fmt:sg},
-    {k:'vibrance',type:'range',label:'Vibrance',min:-1,max:1,step:.05,fmt:sg},
-    {k:'temp',type:'range',label:'Temperature',min:-1,max:1,step:.05,fmt:sg},
-    {k:'tint',type:'range',label:'Tint',min:-1,max:1,step:.05,fmt:sg},
-    {k:'fade',type:'range',label:'Fade',min:0,max:1,step:.05,fmt:f2},
-    {k:'vignette',type:'range',label:'Vignette',min:-1,max:1,step:.05,fmt:sg},
-  ],grid:['exposure','contrast','highlights','shadows','saturation','vibrance','temp','tint','fade','vignette']},
-  {id:'creative',label:'Creative',title:'Creative pass',desc:'Re-synthesises texture per tile. Each tile can drift on its own, like a separate sampler pass.',bypass:true,widgets:[
-    {k:'style',type:'seg',label:'Style',options:[['detail','Detail'],['painterly','Painterly'],['ink','Ink'],['glitch','Glitch']]},
-    {k:'strength',type:'range',label:'Strength',min:0,max:1,step:.01,fmt:f2,hint:'How far each tile moves away from the model output.'},
-    {k:'size',type:'range',label:'Feature scale',min:1,max:8,step:.5,fmt:pxf},
-    {k:'coverage',type:'range',label:'Coverage',min:0,max:1,step:.05,fmt:pct,hint:'0% adds detail only where there is texture; 100% everywhere.',when:p=>p.creative.style==='detail'},
-    {k:'variance',type:'range',label:'Tile variance',min:0,max:1,step:.05,fmt:pct},
+    {k:'lookAmt',type:'range',label:'Look amount',min:0,max:1,step:.05,fmt:pct,when:p=>p.finish.look!=='none'},
+    {k:'sharpen',type:'range',label:'Sharpen',min:0,max:1.5,step:.05,fmt:f2},
+    {k:'clarity',type:'range',label:'Clarity',min:-1,max:1,step:.05,fmt:sg},
     {k:'grain',type:'range',label:'Film grain',min:0,max:1,step:.05,fmt:f2},
-    {k:'grainSize',type:'range',label:'Grain size',min:.5,max:4,step:.1,fmt:v=>(+v).toFixed(1)+' px',when:p=>p.creative.grain>0},
-    {k:'seed',type:'seed',label:'Seed',ai:false},
-  ],grid:['variance','grain','grainSize']},
-  {id:'stitch',label:'Export',title:'Export',desc:'Save the stitched result at full resolution.',widgets:[
-    {k:'format',type:'seg',label:'Format',options:[['png','PNG'],['jpg','JPEG'],['webp','WebP']],ai:false},
-    {k:'quality',type:'range',label:'Quality',min:.5,max:1,step:.01,fmt:pct,when:p=>p.stitch.format!=='png',ai:false},
+    {k:'grainSize',type:'range',label:'Grain size',min:.5,max:3,step:.1,fmt:v=>(+v).toFixed(1)+' px'},
+    {k:'exposure',type:'range',label:'Exposure',min:-1,max:1,step:.05,fmt:v=>sg(v)+' EV'},
+    {k:'contrast',type:'range',label:'Contrast',min:-1,max:1,step:.05,fmt:sg},
+    {k:'saturation',type:'range',label:'Saturation',min:-1,max:1,step:.05,fmt:sg},
+    {k:'temp',type:'range',label:'Temperature',min:-1,max:1,step:.05,fmt:sg},
+    {k:'vignette',type:'range',label:'Vignette',min:-1,max:1,step:.05,fmt:sg},
+  ],grid:['sharpen','clarity','grain','grainSize','exposure','contrast','saturation','temp']},
+  {id:'export',label:'Export',title:'Export',desc:'Save the result at full resolution.',widgets:[
+    {k:'format',type:'seg',label:'Format',options:[['png','PNG'],['jpg','JPEG'],['webp','WebP']]},
+    {k:'quality',type:'range',label:'Quality',min:.5,max:1,step:.01,fmt:pct,when:p=>p.export.format!=='png'},
   ],custom:'export'},
 ];
 const DEF={
-  model:{method:'diffusion',scale:2,dni:.5,blend:1,maxSide:3072,fit:'scale'},
-  diff:{prompt:'masterpiece, best quality, highres, <lora:more_details:0.5> <lora:SDXLrender_v2.0:1>',negative:'(worst quality, low quality, normal quality:2) JuggernautNegative-neg',creativity:.35,resemblance:.6,dynamic:6,steps:18,inputMax:1024,tw:'',th:'',sd_model:'',scheduler:'',handfix:'',sharpen:0},
-  tiles:{size:512,overlap:48,feather:'smooth',grid:false},
-  enhance:{on:false,denoise:0,sharpen:.25,radius:1,threshold:2,clarity:.1},
-  modify:{on:false,look:'none',lookAmt:1,exposure:0,contrast:0,highlights:0,shadows:0,saturation:0,vibrance:0,temp:0,tint:0,fade:0,vignette:0},
-  creative:{on:false,style:'detail',strength:.18,size:1.5,coverage:.3,variance:.05,grain:.06,grainSize:1.2,seed:20261024,seedMode:'fixed'},
-  stitch:{format:'png',quality:.92},
+  restore:{on:false,model:'nano',mode:'realism',extra:'',res:'2K'},
+  upscale:{scale:2,model:'seedvr',noise:.1,crystal:1,maxSide:3072},
+  magnify:{on:true,creativity:.35,blend:1,guidance:1.5,steps:20,tile:1024,overlap:96,colorLock:true,grid:false,seed:20261024,seedMode:'fixed'},
+  finish:{on:false,look:'none',lookAmt:1,sharpen:.15,clarity:0,grain:.06,grainSize:1.1,exposure:0,contrast:0,saturation:0,temp:0,vignette:0},
+  export:{format:'png',quality:.92},
 };
+const RECIPES=[
+  {id:'oldreal',name:'Old photo → real',p:{restore:{on:true,model:'nano',mode:'realism',res:'2K'},upscale:{scale:2,model:'seedvr',noise:.08},magnify:{on:true,creativity:.3,blend:.9,guidance:1.5,steps:20,tile:1024,overlap:96,colorLock:true},finish:{on:true,look:'none',sharpen:.1,clarity:0,grain:.07,grainSize:1.1}}},
+  {id:'oldfaith',name:'Old photo · faithful',p:{restore:{on:true,model:'nano',mode:'color',res:'2K'},upscale:{scale:2,model:'seedvr',noise:.05},magnify:{on:false},finish:{on:false}}},
+  {id:'portrait',name:'Portrait',p:{restore:{on:false},upscale:{scale:2,model:'crystal',crystal:1},magnify:{on:true,creativity:.22,blend:.8,guidance:1.5,steps:20,tile:1024,overlap:128,colorLock:true},finish:{on:false}}},
+  {id:'land',name:'Landscape detail',p:{restore:{on:false},upscale:{scale:4,model:'seedvr',noise:.15},magnify:{on:true,creativity:.45,blend:1,guidance:2,steps:24,tile:768,overlap:96,colorLock:true},finish:{on:false}}},
+  {id:'faith4',name:'Faithful 4×',p:{restore:{on:false},upscale:{scale:4,model:'seedvr',noise:.05},magnify:{on:false},finish:{on:false}}},
+  {id:'art',name:'AI art · wild',p:{restore:{on:false},upscale:{scale:2,model:'local'},magnify:{on:true,creativity:.7,blend:1,guidance:2.5,steps:28,tile:512,overlap:64,colorLock:false},finish:{on:false}}},
+];
 const clone=o=>JSON.parse(JSON.stringify(o));
 function merge(base,over){const o=clone(base);for(const n in over||{}){if(!o[n]||typeof over[n]!=='object')continue;for(const k in over[n])if(k in o[n])o[n][k]=over[n][k];}return o;}
-const PRESETS=[
-  {name:'Diffusion · balanced 2×',d:'Clarity defaults: new detail, same picture',p:{model:{method:'diffusion',scale:2},diff:{creativity:.35,resemblance:.6,dynamic:6,steps:18},enhance:{on:false},creative:{on:false},modify:{on:false}}},
-  {name:'Diffusion · faithful 2×',d:'Low creativity, high resemblance',p:{model:{method:'diffusion',scale:2},diff:{creativity:.22,resemblance:1.3,dynamic:4,steps:18},enhance:{on:false},creative:{on:false},modify:{on:false}}},
-  {name:'Diffusion · creative 2×',d:'Strong reinterpretation of texture',p:{model:{method:'diffusion',scale:2},diff:{creativity:.65,resemblance:.5,dynamic:7,steps:22},enhance:{on:false},creative:{on:false},modify:{on:false}}},
-  {name:'Diffusion · wild 4×',d:'Maximum invented detail, Magnific-style',p:{model:{method:'diffusion',scale:4},diff:{creativity:.9,resemblance:.35,dynamic:9,steps:24,inputMax:768},enhance:{on:false},creative:{on:true,style:'detail',strength:0,grain:.12,grainSize:1.4},modify:{on:false}}},
-  {name:'Faithful 4×',d:'Real-ESRGAN, balanced denoise, light finish',p:{model:{method:'esrgan',scale:4,dni:.5,blend:1},enhance:{on:true,sharpen:.2,clarity:.1},creative:{on:false},modify:{on:false}}},
-  {name:'Clean & crisp 2×',d:'Strong model denoise, extra sharpening',p:{model:{method:'esrgan',scale:2,dni:1,blend:1},enhance:{on:true,sharpen:.45,radius:1,clarity:.2},creative:{on:false},modify:{on:false}}},
-  {name:'Keep the grain 4×',d:'Low denoise so texture survives, plus film grain',p:{model:{method:'esrgan',scale:4,dni:.1,blend:1},enhance:{on:true,sharpen:.15},creative:{on:true,style:'detail',strength:.1,grain:.22,grainSize:1.3},modify:{on:false}}},
-  {name:'Creative detail 4×',d:'Model plus strong re-synthesised micro detail',p:{model:{method:'esrgan',scale:4,dni:.6},enhance:{on:true,sharpen:.35,clarity:.3},creative:{on:true,style:'detail',strength:.55,size:2.5,coverage:.5,variance:.25,grain:.1},modify:{on:true,vibrance:.2,contrast:.08}}},
-  {name:'Illustration 4×',d:'Anime model for lines and flat colour',p:{model:{method:'esrgan-anime',scale:4,blend:1},enhance:{on:true,sharpen:.1,clarity:0},creative:{on:false},modify:{on:false}}},
-  {name:'Film print 2×',d:'Warm, faded, grainy',p:{model:{method:'esrgan',scale:2,dni:.3},enhance:{on:true,sharpen:.2,clarity:-.15},creative:{on:true,style:'detail',strength:.1,grain:.4,grainSize:1.8,variance:0},modify:{on:true,look:'warm',lookAmt:.85,fade:.35,vignette:.35,contrast:.1}}},
-  {name:'Painterly 3×',d:'Oil-paint brush blocks over the model output',p:{model:{method:'esrgan',scale:3,dni:.8},enhance:{on:true,sharpen:.3,clarity:.15},creative:{on:true,style:'painterly',strength:.9,size:4,variance:.15,grain:0},modify:{on:true,saturation:.1}}},
-  {name:'Ink zine 3×',d:'Line art over paper, mono',p:{model:{method:'esrgan',scale:3,dni:.9},enhance:{on:true,sharpen:.5,clarity:.3},creative:{on:true,style:'ink',strength:.85,size:2,variance:.1,grain:.15,grainSize:1},modify:{on:true,look:'mono',contrast:.25}}},
-  {name:'Tile glitch 2×',d:'Hard-cut tiles, RGB split',p:{model:{method:'lanczos',scale:2},tiles:{size:256,overlap:16,feather:'none'},enhance:{on:true,sharpen:.6,clarity:.2},creative:{on:true,style:'glitch',strength:.6,size:3,variance:.5,grain:.2,grainSize:1},modify:{on:true,look:'mono',contrast:.25}}},
-  {name:'Pixel art 6×',d:'Nearest neighbour, nothing else',p:{model:{method:'nearest',scale:6},tiles:{overlap:0,feather:'none'},enhance:{on:false},creative:{on:false},modify:{on:false}}},
-];
 let P;try{P=merge(DEF,JSON.parse(localStorage.getItem(LS)||'{}'));}catch{P=clone(DEF);}
-let UI;try{UI=Object.assign({tab:'model',collapsed:false},JSON.parse(localStorage.getItem(LSUI)||'{}'));}catch{UI={tab:'model',collapsed:false};}
+let UI;try{UI=Object.assign({tab:'upscale',collapsed:false,recipe:''},JSON.parse(localStorage.getItem(LSUI)||'{}'));}catch{UI={tab:'upscale',collapsed:false,recipe:''};}
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P));}catch{}};
 const saveUI=()=>{try{localStorage.setItem(LSUI,JSON.stringify(UI));}catch{}};
+const getKey=()=>{try{return localStorage.getItem(LSKEY)||'';}catch{return '';}};
+const setKey=v=>{try{v?localStorage.setItem(LSKEY,v):localStorage.removeItem(LSKEY);}catch{}};
 
-let IMG=null,imgSeq=0,WORK=null,geo=null,RUN=null,OUT=null,runSeq=0,split=false,splitX=.5,showBefore=false,previewRect=null;
+/* ---------- state ---------- */
+let IMG=null,imgSeq=0,PL=null,RUN=null,OUT=null,runSeq=0,split=false,splitX=.5,showBefore=false,previewRect=null;
+const CACHE={src:null,restore:null,base:null};
 const view=$('#view'),stage=$('#stage'),srcCv=$('#srcCv'),outCv=$('#outCv'),gridSvg=$('#gridSvg');
 
-/* ---------- worker pool ---------- */
-const workerURL=URL.createObjectURL(new Blob([$('#workerSrc').textContent],{type:'text/javascript'}));
-let pool=[],poolVer=-1;
-function ensurePool(work){
-  work=work||WORK;const bytes=work.w*work.h*4;
-  let n=Math.min(4,Math.max(1,(navigator.hardwareConcurrency||4)-1));
-  n=Math.max(1,Math.min(n,Math.floor(160e6/bytes)));
-  if(pool.length!==n){
-    pool.forEach(w=>w.terminate());pool=[];
-    for(let i=0;i<n;i++){const w=new Worker(workerURL);w.load=0;w.onmessage=e=>onWorker(w,e.data);w.onerror=e=>{e.preventDefault();fail('A processing worker stopped (likely out of memory).');};pool.push(w);}
-    poolVer=-1;
-  }
-  if(poolVer!==work.ver){pool.forEach(w=>{const b=work.data.data.buffer.slice(0);w.postMessage({type:'src',buf:b,w:work.w,h:work.h},[b]);});poolVer=work.ver;}
-  return n;
-}
-function killPool(){pool.forEach(w=>w.terminate());pool=[];poolVer=-1;}
-
-/* ---------- geometry ---------- */
+/* ---------- plan ---------- */
 function positions(len,T,O){if(len<=T)return [0];const step=Math.max(8,T-O),xs=[];for(let x=0;;x+=step){if(x+T>=len){const l=len-T;if(xs[xs.length-1]!==l)xs.push(l);break;}xs.push(x);}return xs;}
-function computeGeo(){
-  const cloud=DIFF(P.model.method),s=cloud?Math.min(4,+P.model.scale):+P.model.scale,M=+P.model.maxSide,iw=IMG.w,ih=IMG.h,long=Math.max(iw,ih);
-  const want=Math.round(long*s),outLong=Math.min(want,M);
-  let srcLong,eff;
-  if(cloud){srcLong=Math.max(1,Math.min(long,+P.diff.inputMax,Math.floor(M/s)));eff=s;}
-  else if(P.model.fit==='scale'){srcLong=Math.max(1,Math.min(long,Math.floor(outLong/s)));eff=s;}
-  else{srcLong=Math.min(long,4096);eff=outLong/srcLong;}
-  const sw=Math.max(1,Math.round(iw*srcLong/long)),sh=Math.max(1,Math.round(ih*srcLong/long));
-  let ow=Math.max(1,Math.round(sw*eff)),oh=Math.max(1,Math.round(sh*eff));
-  const AREA=16777216;if(ow*oh>AREA){const k=Math.sqrt(AREA/(ow*oh));ow=Math.floor(ow*k);oh=Math.floor(oh*k);}
-  return Object.assign(layoutTiles(sw,sh,ow,oh),{capped:want>M,shrunk:srcLong<long,scaleCapped:cloud&&+P.model.scale>4});
+const INPUT_MAX=2048;
+// Even split along one axis: n tiles of size L (multiple of 16 when possible) that cover len with at least O overlap.
+function axisTiles(len,T,O){
+  if(len<=T)return {starts:[0],L:len};
+  const n=Math.ceil((len-O)/(T-O));let L=Math.min(len,Math.ceil((len+(n-1)*O)/n/16)*16);
+  const step=(len-L)/(n-1),starts=[];for(let i=0;i<n;i++)starts.push(Math.round(i*step));
+  return {starts,L};
 }
-function layoutTiles(sw,sh,ow,oh){
-  const T=+P.tiles.size,O=Math.min(+P.tiles.overlap,Math.floor(T/2));
-  const xs=positions(ow,T,O),ys=positions(oh,T,O),tiles=[];
-  ys.forEach((y,iy)=>xs.forEach((x,ix)=>tiles.push({id:tiles.length,ix,iy,x,y,w:Math.min(T,ow),h:Math.min(T,oh)})));
-  const k=ow/sw,clarityR=Math.min(14,Math.round(4+2*k));
-  let margin=6;const E=P.enhance,C=P.creative;
-  if(E.on){if(E.sharpen>0)margin=Math.max(margin,3*E.radius+3);if(E.clarity)margin=Math.max(margin,3*clarityR+2);if(E.denoise>0)margin=Math.max(margin,9);}
-  if(C.on&&C.strength>0){if(C.style==='detail')margin=Math.max(margin,16);if(C.style==='painterly')margin=Math.max(margin,Math.round(C.size)+6);if(C.style==='ink')margin=Math.max(margin,3*Math.ceil(C.size/2)+6);}
-  margin=Math.min(margin,48);
-  return {sw,sh,ow,oh,eff:k,T,O,cols:xs.length,rows:ys.length,tiles,margin,clarityR};
+function restoreKey(iw,ih){const r=P.restore;return JSON.stringify([IMG.id,iw,ih,r.model,r.mode,r.extra.trim(),r.model==='nano'?r.res:'']);}
+function plan(){
+  const long=Math.max(IMG.w,IMG.h),inLong=Math.min(long,INPUT_MAX),iw=Math.max(1,Math.round(IMG.w*inLong/long)),ih=Math.max(1,Math.round(IMG.h*inLong/long));
+  let cw=iw,ch=ih,exact=true,rKey=null,rCached=false;
+  if(P.restore.on){
+    rKey=restoreKey(iw,ih);
+    if(CACHE.restore&&CACHE.restore.key===rKey){cw=CACHE.restore.w;ch=CACHE.restore.h;rCached=true;}
+    else{exact=false;let k;if(P.restore.model==='nano')k={'1K':1024,'2K':2048,'4K':4096}[P.restore.res]/Math.max(iw,ih);else k=Math.sqrt(1048576/(iw*ih));cw=Math.max(1,Math.round(iw*k));ch=Math.max(1,Math.round(ih*k));}
+  }
+  const S=+P.upscale.scale,Mx=+P.upscale.maxSide;
+  let fw=Math.round(cw*S),fh=Math.round(ch*S);
+  const lim=Math.min(1,Mx/Math.max(fw,fh),Math.sqrt(16777216/(fw*fh)));
+  fw=Math.max(2,Math.floor(fw*lim));fh=Math.max(2,Math.floor(fh*lim));
+  const mag=P.magnify.on,bw=mag?Math.round(fw/2):fw,bh=mag?Math.round(fh/2):fh;
+  const baseFactor=bw/cw,useBase=P.upscale.model!=='local'&&baseFactor>1.05;
+  const T=Math.min(+P.magnify.tile,Math.max(bw,bh)),O=Math.min(+P.magnify.overlap,Math.floor(T/2));
+  const tiles=[];
+  let ax={starts:[0],L:bw},ay={starts:[0],L:bh};
+  if(mag){ax=axisTiles(bw,T,O);ay=axisTiles(bh,T,O);ay.starts.forEach((y,iy)=>ax.starts.forEach((x,ix)=>tiles.push({id:tiles.length,ix,iy,x,y,w:ax.L,h:ay.L})));}
+  const bKey=JSON.stringify([rKey||IMG.id+':'+iw,useBase?P.upscale.model:'local',P.upscale.model==='seedvr'?P.upscale.noise:P.upscale.model==='crystal'?P.upscale.crystal:0,bw,bh]);
+  const c={restore:P.restore.on&&!rCached?restoreCost(P):0,base:useBase&&!(CACHE.base&&CACHE.base.key===bKey)?M[P.upscale.model].perMP*bw*bh/1e6:0,magnify:mag?tiles.reduce((a,t)=>a+t.w*t.h*4,0)/1e6*M.flux.perMP:0};
+  c.total=c.restore+c.base+c.magnify;
+  return {iw,ih,cw,ch,exact,rKey,rCached,fw,fh,bw,bh,baseFactor,useBase,bKey,bCached:!!(CACHE.base&&CACHE.base.key===bKey),tiles,T,O,cols:ax.starts.length,rows:ay.starts.length,cost:c,capped:lim<1,needsKey:(P.restore.on&&!rCached)||(useBase&&!(CACHE.base&&CACHE.base.key===bKey))||mag};
 }
-function ensureWork(){
-  const key=IMG.id+':'+geo.sw+'x'+geo.sh;if(WORK&&WORK.key===key)return;
-  let src=IMG.src,cw=IMG.w,ch=IMG.h;
-  while(cw/2>=geo.sw*1.01&&ch/2>=geo.sh*1.01){const c=document.createElement('canvas');c.width=Math.round(cw/2);c.height=Math.round(ch/2);const x=c.getContext('2d');x.imageSmoothingQuality='high';x.drawImage(src,0,0,c.width,c.height);src=c;cw=c.width;ch=c.height;}
-  srcCv.width=geo.sw;srcCv.height=geo.sh;
-  const x=srcCv.getContext('2d',{willReadFrequently:true});x.fillStyle='#000';x.fillRect(0,0,geo.sw,geo.sh);x.imageSmoothingQuality='high';x.drawImage(src,0,0,geo.sw,geo.sh);
-  WORK={key,w:geo.sw,h:geo.sh,data:x.getImageData(0,0,geo.sw,geo.sh),ver:(WORK?WORK.ver:0)+1};
-}
-const jobParams=g=>Object.assign(clone(P),{ow:g.ow,oh:g.oh,margin:g.margin,overlap:g.O,clarityR:g.clarityR});
-const sigOf=()=>JSON.stringify([P.diff,P.model,P.tiles.size,P.tiles.overlap,P.tiles.feather,P.enhance,P.modify,P.creative,IMG&&IMG.id]);
+const sigOf=()=>JSON.stringify([IMG&&IMG.id,P.restore,P.upscale,P.magnify.on&&[P.magnify.creativity,P.magnify.blend,P.magnify.guidance,P.magnify.steps,P.magnify.tile,P.magnify.overlap,P.magnify.colorLock,P.magnify.seed],P.finish]);
 
-/* ---------- neural model (Real-ESRGAN SRVGGNetCompact, TF.js WebGL) ---------- */
-const ARCH=n=>[{s:[3,3,3,64],p:1},...Array.from({length:n},()=>({s:[3,3,64,64],p:1})),{s:[3,3,64,48],p:0}];
-const FILES={gen:'models/esrgan-general-x4v3.f16.b64.txt',wdn:'models/esrgan-general-wdn-x4v3.f16.b64.txt',anime:'models/esrgan-anime-x4v3.f16.b64.txt'};
-const NN={tf:null,tfP:null,w:{},net:null,key:'',busy:null,backend:''};
-const PAD=10;
-function loadTF(){
-  if(NN.tfP)return NN.tfP;
-  NN.tfP=new Promise((res,rej)=>{const s=document.createElement('script');s.src='/vendor/tf.min.js';s.onload=async()=>{try{const tf=window.tf;try{await tf.setBackend('webgl');}catch{}await tf.ready();NN.tf=tf;NN.backend=tf.getBackend();res(tf);}catch(e){rej(e);}};s.onerror=()=>rej(new Error('Could not load TensorFlow.js'));document.head.appendChild(s);});
-  NN.tfP.catch(()=>{NN.tfP=null;});
-  return NN.tfP;
+/* ---------- fal API ---------- */
+async function api(method,qs,body){
+  const h={'x-fal-key':getKey()};if(body)h['content-type']='application/json';
+  let r;try{r=await fetch('/api/fal'+(qs||''),{method,headers:h,body:body?JSON.stringify(body):undefined});}catch{const e=new Error('No connection to the Upres server. Check your network.');e.status=0;throw e;}
+  let j={};try{j=await r.json();}catch{}
+  if(!r.ok){const e=new Error(j.message||('Server error '+r.status));e.code=j.error;e.status=r.status;throw e;}
+  return j;
 }
-let F16T=null;
-function decodeF16(buf){if(!F16T){F16T=new Float32Array(65536);for(let h=0;h<65536;h++){const s=(h&0x8000)?-1:1,e=(h>>10)&31,f=h&1023;F16T[h]=e===0?s*Math.pow(2,-14)*(f/1024):e===31?(f?NaN:s*Infinity):s*Math.pow(2,e-15)*(1+f/1024);}}const u=new Uint16Array(buf),o=new Float32Array(u.length);for(let i=0;i<u.length;i++)o[i]=F16T[u[i]];return o;}
-async function loadWeights(key,label){
-  if(NN.w[key])return NN.w[key];
-  setLoad(`Downloading ${label}`);
-  const r=await fetch(FILES[key]);if(!r.ok)throw new Error('Model file missing ('+r.status+')');
-  const size=key==='anime'?1.66:3.24;let txt='';
-  if(r.body&&window.TextDecoder){const rd=r.body.getReader(),dec=new TextDecoder(),parts=[];let got=0;for(;;){const {done,value}=await rd.read();if(done)break;parts.push(dec.decode(value,{stream:true}));got+=value.length;setLoad(`Downloading ${label} · ${Math.min(100,Math.round(got/1e6/size*100))}%`);}parts.push(dec.decode());txt=parts.join('');}
-  else txt=await r.text();
-  const bin=atob(txt.trim()),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
-  return NN.w[key]=decodeF16(u8.buffer);
+const enc=encodeURIComponent;
+async function falRun(run,model,input,onStatus){
+  const sub=await api('POST','',{model,input});
+  if(!sub.status_url||!sub.response_url)throw new Error('fal did not accept the request.');
+  run.reqs.add(sub.cancel_url);
+  try{
+    let delay=900;
+    for(;;){
+      if(run.cancel)throw cancelled();
+      await sleep(delay);delay=Math.min(2600,delay*1.2);
+      if(run.cancel)throw cancelled();
+      let st;try{st=await api('GET','?status='+enc(sub.status_url));}catch(e){if(e.status===0||e.status>=500)continue;throw e;}
+      onStatus&&onStatus(st);
+      if(st.status==='COMPLETED')break;
+    }
+    return await api('GET','?result='+enc(sub.response_url));
+  }finally{run.reqs.delete(sub.cancel_url);}
 }
-function build(tf,arch,w){let o=0;const L=arch.map(l=>{const n=l.s[0]*l.s[1]*l.s[2]*l.s[3];const W=tf.tensor4d(w.subarray(o,o+n),l.s);o+=n;const B=tf.tensor1d(w.subarray(o,o+l.s[3]));o+=l.s[3];let A=null;if(l.p){A=tf.tensor1d(w.subarray(o,o+l.s[3]));o+=l.s[3];}return {W,B,A};});
-  if(o!==w.length)throw new Error('Model weights do not match the architecture');
-  return {run:x=>tf.tidy(()=>{let h=x;for(const l of L)h=tf.fused.conv2d({x:h,filter:l.W,strides:1,pad:'same',bias:l.B,activation:l.A?'prelu':'linear',preluActivationWeights:l.A||undefined});h=tf.depthToSpace(h,4,'NHWC');return tf.add(h,tf.image.resizeNearestNeighbor(x,[x.shape[1]*4,x.shape[2]*4]));}),
-    dispose:()=>L.forEach(l=>{l.W.dispose();l.B.dispose();l.A&&l.A.dispose();})};}
-function netKey(){return P.model.method==='esrgan'?'gen@'+(+P.model.dni).toFixed(2):'anime';}
-async function ensureNet(){
-  const key=netKey();if(NN.net&&NN.key===key)return NN.net;
-  if(NN.busy)await NN.busy.catch(()=>{});
-  if(NN.net&&NN.key===key)return NN.net;
-  NN.busy=(async()=>{
-    setLoad('Loading TensorFlow.js');const tf=await loadTF();
-    let w;
-    if(key==='anime')w=await loadWeights('anime','anime model');
-    else{const d=+P.model.dni,a=await loadWeights('gen','general model'),b=await loadWeights('wdn','detail model');w=new Float32Array(a.length);for(let i=0;i<a.length;i++)w[i]=a[i]*d+b[i]*(1-d);}
-    setLoad('Compiling GPU shaders');
-    if(NN.net)NN.net.dispose();
-    NN.net=build(tf,ARCH(key==='anime'?16:32),w);NN.key=key;
-    const t=tf.zeros([1,16,16,3]),y=NN.net.run(t);await y.data();t.dispose();y.dispose();
-    setLoad(null);updateStatus();
-    return NN.net;
-  })();
-  try{return await NN.busy;}catch(e){setLoad(null);throw e;}finally{NN.busy=null;}
+const cancelled=()=>{const e=new Error('cancelled');e.cancelled=true;return e;};
+const outUrl=r=>(r&&r.image&&r.image.url)||(r&&r.images&&r.images[0]&&r.images[0].url);
+const qText=st=>st.status==='IN_QUEUE'?('in queue'+(st.queue_position!=null?' · #'+(st.queue_position+1):'')):st.status==='IN_PROGRESS'?'running':'finishing';
+async function loadRemote(url){
+  let blob=null;
+  if(url.startsWith('data:')){blob=await (await fetch(url)).blob();}
+  if(!blob){try{const r=await fetch(url,{mode:'cors'});if(r.ok)blob=await r.blob();}catch{}}
+  if(!blob){const r=await fetch('/api/img?u='+enc(url));if(!r.ok)throw new Error('Could not download a result image.');blob=await r.blob();}
+  if(window.createImageBitmap){try{return await createImageBitmap(blob);}catch{}}
+  const im=new Image();im.src=URL.createObjectURL(blob);await im.decode();return im;
 }
-async function infer(tile,g){
-  const s=g.ow/g.sw,M=g.margin;
-  const rx0=Math.max(0,tile.x-M),ry0=Math.max(0,tile.y-M),rx1=Math.min(g.ow,tile.x+tile.w+M),ry1=Math.min(g.oh,tile.y+tile.h+M);
-  const sx0=Math.max(0,Math.floor(rx0/s)-PAD),sy0=Math.max(0,Math.floor(ry0/s)-PAD),sx1=Math.min(g.sw,Math.ceil(rx1/s)+PAD),sy1=Math.min(g.sh,Math.ceil(ry1/s)+PAD);
-  const w=sx1-sx0,h=sy1-sy0,d=WORK.data.data,W=WORK.w,arr=new Float32Array(w*h*3);
-  for(let y=0,k=0;y<h;y++){let i=((sy0+y)*W+sx0)*4;for(let x=0;x<w;x++,i+=4){arr[k++]=d[i]/255;arr[k++]=d[i+1]/255;arr[k++]=d[i+2]/255;}}
-  const tf=NN.tf,x=tf.tensor4d(arr,[1,h,w,3]),y=NN.net.run(x);x.dispose();
-  const out=await y.data();y.dispose();
-  return {buf:out.buffer,w:w*4,h:h*4,ox:sx0*4,oy:sy0*4,k:s/4};
+async function encode(cv,x,y,w,h,maxChars){
+  maxChars=maxChars||4200000;let W=w,H=h;
+  for(let a=0;a<5;a++){
+    const c=document.createElement('canvas');c.width=W;c.height=H;const cx=c.getContext('2d');cx.imageSmoothingQuality='high';cx.drawImage(cv,x,y,w,h,0,0,W,H);
+    for(const q of [.95,.9,.84]){const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',q));if(blob&&blob.size*1.37<maxChars)return await new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=()=>rej(new Error('Could not read the image'));fr.readAsDataURL(blob);});}
+    W=Math.round(W*.85);H=Math.round(H*.85);
+  }
+  throw new Error('The image is too large to send.');
 }
+function canvasOf(src,w,h){
+  w=w||src.width;h=h||src.height;let s=src,sw=src.width,sh=src.height;
+  while(sw/2>=w*1.01&&sh/2>=h*1.01){const c=document.createElement('canvas');c.width=Math.round(sw/2);c.height=Math.round(sh/2);const x=c.getContext('2d');x.imageSmoothingQuality='high';x.drawImage(s,0,0,c.width,c.height);s=c;sw=c.width;sh=c.height;}
+  const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.imageSmoothingQuality='high';x.drawImage(s,0,0,w,h);return c;
+}
+function sourceCanvas(w,h){const k=IMG.id+':'+w+'x'+h;if(CACHE.src&&CACHE.src.key===k)return CACHE.src.c;const c=canvasOf(IMG.src,w,h);const x=c.getContext('2d');x.globalCompositeOperation='destination-over';x.fillStyle='#000';x.fillRect(0,0,w,h);CACHE.src={key:k,c};return c;}
 
 /* ---------- viewport: pan / zoom / split / before ---------- */
 const Z={z:1,tx:0,ty:0,fit:1,atFit:true};
-function shown(){if(RUN)return RUN.geo;if(OUT&&OUT.ow===geo.ow&&OUT.oh===geo.oh)return OUT;return geo;}
-function csize(){const g=shown(),d=devicePixelRatio||1;return {w:g.ow/d,h:g.oh/d};}
+function shown(){if(RUN&&RUN.pl)return {w:RUN.pl.fw,h:RUN.pl.fh};return {w:PL.fw,h:PL.fh};}
+function csize(){const g=shown(),d=devicePixelRatio||1;return {w:g.w/d,h:g.h/d};}
 function vrect(){return {w:view.clientWidth,h:view.clientHeight};}
-function fitView(){if(!geo)return;const r=vrect(),c=csize(),pad=r.w<600?12:28;Z.fit=Math.max(.01,Math.min((r.w-pad*2)/c.w,(r.h-pad*2)/c.h));Z.z=Z.fit;Z.atFit=true;Z.tx=(r.w-c.w*Z.z)/2;Z.ty=(r.h-c.h*Z.z)/2;applyZ();}
+function fitView(){if(!PL)return;const r=vrect(),c=csize(),pad=r.w<600?12:28;Z.fit=Math.max(.01,Math.min((r.w-pad*2)/c.w,(r.h-pad*2)/c.h));Z.z=Z.fit;Z.atFit=true;Z.tx=(r.w-c.w*Z.z)/2;Z.ty=(r.h-c.h*Z.z)/2;applyZ();}
 function clampZ(){const r=vrect(),c=csize(),W=c.w*Z.z,H=c.h*Z.z;Z.tx=W<=r.w?(r.w-W)/2:Math.min(0,Math.max(r.w-W,Z.tx));Z.ty=H<=r.h?(r.h-H)/2:Math.min(0,Math.max(r.h-H,Z.ty));}
 function zoomAt(nz,cx,cy){nz=Math.max(Math.min(Z.fit,1),Math.min(8,nz));const k=nz/Z.z;Z.tx=cx-(cx-Z.tx)*k;Z.ty=cy-(cy-Z.ty)*k;Z.z=nz;Z.atFit=Math.abs(nz-Z.fit)<1e-3;clampZ();applyZ();}
 function applyZ(){
-  if(!geo)return;const c=csize();
+  if(!PL)return;const c=csize();
   stage.style.width=c.w+'px';stage.style.height=c.h+'px';
   stage.style.transform=`translate(${Z.tx}px,${Z.ty}px) scale(${Z.z})`;
-  const g=shown(),dpr=devicePixelRatio||1,cssPerSrc=(c.w*Z.z)/geo.sw;
-  stage.classList.toggle('px',Z.z>=2||P.model.method==='nearest');
-  srcCv.style.imageRendering=(cssPerSrc*dpr>3&&!outVisible())?'pixelated':'';
+  stage.classList.toggle('px',Z.z>=2&&!Z.atFit);
   $('#hudZoom').textContent=Z.atFit?'Fit · '+Math.round(Z.z*100)+'%':Math.round(Z.z*100)+'%';
   applySplit();
 }
@@ -721,7 +728,7 @@ view.addEventListener('wheel',e=>{e.preventDefault();const p=rel(e);zoomAt(Z.z*M
 $('#hudZoom').addEventListener('click',()=>{if(Z.atFit){const r=vrect();zoomAt(1,r.w/2,r.h/2);}else fitView();});
 new ResizeObserver(()=>{if(Z.atFit)fitView();else{clampZ();applyZ();}}).observe(view);
 
-function outVisible(){return !!(RUN||(OUT&&OUT.ow===geo.ow&&OUT.oh===geo.oh)||previewRect);}
+function outVisible(){if(RUN)return !!RUN.drawn;return !!(OUT&&PL&&OUT.w===PL.fw&&OUT.h===PL.fh);}
 function refreshOut(){
   const vis=outVisible();
   outCv.hidden=!vis||showBefore;
@@ -750,14 +757,16 @@ bb.addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefa
 bb.addEventListener('keyup',()=>{if(showBefore)holdB(false);});
 
 function drawGrid(){
-  if(!geo)return;const g=RUN?RUN.geo:geo;
-  gridSvg.setAttribute('viewBox',`0 0 ${g.ow} ${g.oh}`);
-  const show=(RUN||P.tiles.grid||previewRect)&&!split;
+  if(!PL)return;const pl=RUN&&RUN.pl?RUN.pl:PL,g=shown();
+  gridSvg.setAttribute('viewBox',`0 0 ${g.w} ${g.h}`);
+  const k=pl.fw/pl.bw;
+  const live=RUN&&RUN.st&&RUN.phase;
+  const show=(live||(P.magnify.on&&P.magnify.grid)||previewRect)&&!split;
   gridSvg.style.display=show?'':'none';if(!show)return;
   let h='';
-  if(RUN){for(const t of g.tiles)h+=`<rect x="${t.x}" y="${t.y}" width="${t.w}" height="${t.h}" class="${RUN.st[t.id]||'q'}"/>`;}
-  else{if(P.tiles.grid)for(const t of g.tiles)h+=`<rect x="${t.x}" y="${t.y}" width="${t.w}" height="${t.h}"/>`;
-    if(previewRect)h+=`<rect x="${previewRect.x}" y="${previewRect.y}" width="${previewRect.w}" height="${previewRect.h}" class="p"/>`;}
+  const list=live?RUN.phaseTiles:(P.magnify.on&&P.magnify.grid?pl.tiles.map(t=>({id:t.id,x:t.x*k,y:t.y*k,w:t.w*k,h:t.h*k})):[]);
+  for(const t of list)h+=`<rect x="${t.x}" y="${t.y}" width="${t.w}" height="${t.h}" class="${live?(RUN.st[t.id]||'q'):''}"/>`;
+  if(!RUN&&previewRect)h+=`<rect x="${previewRect.x}" y="${previewRect.y}" width="${previewRect.w}" height="${previewRect.h}" class="p"/>`;
   gridSvg.innerHTML=h;
 }
 function stCls(id,c){if(!RUN)return;RUN.st[id]=c;const r=gridSvg.children[id];if(r)r.setAttribute('class',c);}
@@ -768,49 +777,59 @@ function setLoad(t){$('#hudLoad').hidden=!t;if(t)$('#loadTxt').textContent=t;}
 function updateStatus(){
   if(RUN||showBefore)return;
   const stale=OUT&&OUT.full&&OUT.sig!==sigOf();
-  if(OUT&&OUT.full&&!stale)status(`<b>Done</b> · ${OUT.secs}s · ${OUT.ow}×${OUT.oh}`);
+  if(OUT&&OUT.full&&!stale)status(`<b>Done</b> · ${OUT.secs}s · ${OUT.w}×${OUT.h}`);
   else if(stale)status('Settings changed · run again to update');
-  else if(previewRect)status('<b>Preview</b> · one tile rendered');
-  else if(DIFF(P.model.method))status(tok()?'Ready · cloud diffusion':'Connect Replicate in Model to use diffusion');
-  else status(NEURAL(P.model.method)?(NN.net&&NN.key===netKey()?'Model ready':'Ready'):'Ready');
+  else if(previewRect)status('<b>Preview</b> · one tile magnified');
+  else status(PL&&PL.needsKey&&!getKey()?'Add your fal key to run':'Ready');
   $('#prog').style.width=OUT&&OUT.full&&!stale?'100%':'0';
 }
-function refresh(live){
+function refresh(){
   if(!IMG)return;
-  const before=geo&&geo.ow+'x'+geo.oh;geo=computeGeo();
-  if(!RUN)ensureWork();
-  $('#hudDims').textContent=`${geo.sw}×${geo.sh} → ${geo.ow}×${geo.oh}`;
-  renderTabs();if(!live)refreshFacts();
-  refreshOut();
-  if(before!==geo.ow+'x'+geo.oh){previewRect=null;if(!RUN&&!(OUT&&OUT.ow===geo.ow&&OUT.oh===geo.oh))outCv.hidden=true;fitView();}else applyZ();
-  drawGrid();updateStatus();
+  const before=PL&&PL.fw+'x'+PL.fh;PL=plan();
+  $('#hudDims').textContent=`${IMG.w}×${IMG.h} → ${PL.exact?'':'≈ '}${PL.fw}×${PL.fh}`;
+  $('#runCost').textContent=' · '+money(PL.cost.total);
+  syncTabs();refreshFacts();refreshOut();
+  if(before!==PL.fw+'x'+PL.fh&&!RUN){previewRect=null;fitView();}else applyZ();
+  drawGrid();updateStatus();syncRecipes();
+}
+
+/* ---------- recipes ---------- */
+function buildRecipes(){
+  const r=$('#recipes');r.innerHTML='<span class="rc lbl">Recipes</span>'+RECIPES.map(x=>`<button class="rc" data-id="${x.id}" aria-pressed="false">${esc(x.name)}</button>`).join('');
+  r.querySelectorAll('button.rc').forEach(b=>b.addEventListener('click',()=>{
+    const rc=RECIPES.find(x=>x.id===b.dataset.id);
+    const keep={seed:P.magnify.seed,seedMode:P.magnify.seedMode,grid:P.magnify.grid,ex:clone(P.export),max:P.upscale.maxSide,extra:P.restore.extra};
+    P=merge(DEF,rc.p);P.magnify.seed=keep.seed;P.magnify.seedMode=keep.seedMode;P.magnify.grid=keep.grid;P.export=keep.ex;P.upscale.maxSide=keep.max;P.restore.extra=keep.extra;
+    UI.recipe=rc.id;saveUI();save();renderPanel();refresh();toast(rc.name+' · '+money(PL.cost.total)+' per run');
+  }));
+}
+function syncRecipes(){
+  const rc=RECIPES.find(x=>x.id===UI.recipe);let match=false;
+  if(rc){const m=merge(DEF,rc.p);match=['restore','upscale','magnify','finish'].every(n=>Object.keys(rc.p[n]||{}).every(k=>JSON.stringify(m[n][k])===JSON.stringify(P[n][k])));}
+  document.querySelectorAll('#recipes button.rc').forEach(b=>b.setAttribute('aria-pressed',match&&b.dataset.id===UI.recipe));
 }
 
 /* ---------- tabs & panel ---------- */
 function subOf(id){
-  const g=geo;if(!g)return '';
+  const pl=PL;if(!pl)return '';
   switch(id){
     case 'source':return `${IMG.w}×${IMG.h}`;
-    case 'model':if(DIFF(P.model.method))return 'Clarity ×'+(+g.eff.toFixed(2));return (NEURAL(P.model.method)?(P.model.method==='esrgan'?'ESRGAN':'Anime'):METHODS.find(m=>m[0]===P.model.method)[1])+' ×'+(+g.eff.toFixed(2));
-    case 'tiles':return `${g.tiles.length} × ${Math.min(g.T,Math.max(g.ow,g.oh))}`;
-    case 'enhance':return P.enhance.on?`sharp ${(+P.enhance.sharpen).toFixed(2)}`:'Off';
-    case 'modify':return P.modify.on?(P.modify.look==='none'?'Graded':LOOKS.find(l=>l[0]===P.modify.look)[1]):'Off';
-    case 'creative':return P.creative.on?`${P.creative.style} ${(+P.creative.strength).toFixed(2)}`:'Off';
-    case 'stitch':return P.stitch.format.toUpperCase();
+    case 'restore':return P.restore.on?(pl.rCached?'cached':M[P.restore.model].name.replace('FLUX.1 ','')):'Off';
+    case 'upscale':return `${M[P.upscale.model].name} ×${P.upscale.scale}`;
+    case 'magnify':return P.magnify.on?`${pl.tiles.length} tile${pl.tiles.length>1?'s':''} · ${(+P.magnify.creativity).toFixed(2)}`:'Off';
+    case 'finish':return P.finish.on?(P.finish.look!=='none'?LOOKS.find(l=>l[0]===P.finish.look)[1]:'On'):'Off';
+    case 'export':return P.export.format.toUpperCase();
   }
 }
 function renderTabs(){
   const t=$('#tabs');
-  if(!t.children.length){
-    STEPS.forEach((s,i)=>{
-      if(i){const c=document.createElement('span');c.className='chev';c.textContent='›';c.setAttribute('aria-hidden','true');t.appendChild(c);}
-      const b=document.createElement('button');b.className='tab';b.setAttribute('role','tab');b.dataset.id=s.id;b.id='tab-'+s.id;
-      b.innerHTML=`<span class="t"><span class="dot"></span>${s.label}</span><span class="s"></span>`;
-      b.addEventListener('click',()=>{if(UI.tab===s.id){UI.collapsed=!UI.collapsed;}else{UI.tab=s.id;UI.collapsed=false;renderPanel();}saveUI();syncTabs();});
-      t.appendChild(b);
-    });
-  }
-  syncTabs();
+  STEPS.forEach((s,i)=>{
+    if(i){const c=document.createElement('span');c.className='chev';c.textContent='›';c.setAttribute('aria-hidden','true');t.appendChild(c);}
+    const b=document.createElement('button');b.className='tab';b.setAttribute('role','tab');b.id='tab-'+s.id;
+    b.innerHTML=`<span class="t"><span class="dot"></span>${s.label}</span><span class="s"></span>`;
+    b.addEventListener('click',()=>{if(UI.tab===s.id){UI.collapsed=!UI.collapsed;}else{UI.tab=s.id;UI.collapsed=false;renderPanel();}saveUI();syncTabs();});
+    t.appendChild(b);
+  });
 }
 function syncTabs(){
   const act=$('#tab-'+UI.tab);if(act&&innerWidth<960)act.scrollIntoView({block:'nearest',inline:'nearest'});
@@ -819,97 +838,86 @@ function syncTabs(){
   if(innerWidth<960&&Z.atFit)requestAnimationFrame(fitView);
 }
 function renderPanel(){
-  const s=STEPS.find(x=>x.id===UI.tab)||STEPS[1];const pn=$('#panel');pn.innerHTML='';pn.scrollTop=0;
+  const s=STEPS.find(x=>x.id===UI.tab)||STEPS[2];const pn=$('#panel');pn.innerHTML='';pn.scrollTop=0;
   const head=document.createElement('div');head.className='ph';
-  head.innerHTML=`<div><h3>${s.title}</h3><p>${typeof s.desc==='function'?s.desc():s.desc}</p></div>`;
-  if(s.bypass){const sw=document.createElement('button');sw.className='sw';sw.setAttribute('role','switch');sw.setAttribute('aria-label','Enable '+s.title);sw.setAttribute('aria-checked',P[s.id].on);sw.addEventListener('click',()=>{P[s.id].on=!P[s.id].on;sw.setAttribute('aria-checked',P[s.id].on);body.style.opacity=P[s.id].on?1:.4;changed(s.id);});head.appendChild(sw);}
-  pn.appendChild(head);
-  const body=document.createElement('div');body.className='sec';pn.appendChild(body);
-  if(s.bypass)body.style.opacity=P[s.id].on?1:.4;
+  head.innerHTML=`<div><h3>${s.title}</h3><p>${s.desc}</p></div>`;
+  const body=document.createElement('div');body.className='sec';
+  if(s.bypass){const sw=document.createElement('button');sw.className='sw';sw.setAttribute('role','switch');sw.setAttribute('aria-label','Enable '+s.title);sw.setAttribute('aria-checked',P[s.id].on);sw.addEventListener('click',()=>{P[s.id].on=!P[s.id].on;sw.setAttribute('aria-checked',P[s.id].on);body.style.opacity=P[s.id].on?1:.4;changed(s.id);});head.appendChild(sw);body.style.opacity=P[s.id].on?1:.4;}
+  pn.appendChild(head);pn.appendChild(body);
   if(s.custom==='source')buildSource(body);
   let gb=null;
   (s.widgets||[]).forEach(w=>{const el=buildWidget(s,w);if(s.grid&&s.grid.includes(w.k)){if(!gb){gb=document.createElement('div');gb.className='g2';body.appendChild(gb);}gb.appendChild(el);}else body.appendChild(el);});
-  if(s.custom==='model'||s.custom==='tiles'||s.custom==='export'){const f=document.createElement('dl');f.className='facts';f.id='facts';body.appendChild(f);}
+  if(s.custom==='facts'||s.custom==='export'){const f=document.createElement('dl');f.className='facts';f.id='facts';body.appendChild(f);}
+  if(s.id==='upscale'||s.id==='magnify'||s.id==='restore'){const c=document.createElement('dl');c.className='costs';c.id='costs';body.appendChild(c);}
   if(s.custom==='export'){const b=document.createElement('button');b.className='btn pri';b.id='bSave2';b.textContent='Save image';b.addEventListener('click',saveImage);body.appendChild(b);}
   syncWidgets(s);refreshFacts();
 }
 function refreshFacts(){
-  const f=$('#facts');if(!f||!geo)return;const g=geo,id=UI.tab;let rows=[];
-  if(id==='model'&&DIFF(P.model.method)){
-    rows=[['Input sent',`${g.sw}×${g.sh}`],['Output',`${g.ow}×${g.oh}`],['Runs on','Replicate · Nvidia A100'],['Model','philz1337x/clarity-upscaler'],['Typical cost','≈ $0.02 a run, more for big outputs'],['Account',CLOUD.schema?'Connected':tok()?'Not verified':'Not connected']];
-    if(g.scaleCapped)rows.push(['Note','Clarity goes up to 4× per run']);
-  }else if(id==='model'){
-    rows=[['Input used',`${g.sw}×${g.sh}`],['Output',`${g.ow}×${g.oh}`],['Effective scale','×'+(+g.eff.toFixed(2))]];
-    if(NEURAL(P.model.method))rows.push(['Network',`SRVGG compact · ${P.model.method==='esrgan'?'1.21':'0.62'}M params`],['Runs on',NN.backend?(NN.backend==='webgl'?'GPU (WebGL)':NN.backend.toUpperCase()):'GPU (WebGL), loads on first run']);
-    if(g.capped&&g.shrunk&&P.model.fit==='scale')rows.push(['Note','Input shrunk to fit the max output']);
-  }else if(id==='tiles'){rows=[['Tiles',`${g.tiles.length} (${g.cols}×${g.rows})`],['Overlap',g.O+' px'],['Context margin',g.margin+' px per side'],['Neural context',NEURAL(P.model.method)?PAD+' source px':'—']];}
-  else if(id==='stitch'){rows=OUT&&OUT.full?[['Result',`${OUT.ow}×${OUT.oh}`],['Time',OUT.secs+' s'],['Seed',String(OUT.seed)]]:[['Result','Run Upscale first']];const b=$('#bSave2');if(b)b.disabled=!(OUT&&OUT.full);}
-  f.innerHTML=rows.map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join('');
+  if(!PL)return;const pl=PL,id=UI.tab,f=$('#facts'),c=$('#costs');
+  if(f){let rows=[];
+    if(id==='upscale')rows=[['Working input',`${pl.iw}×${pl.ih}`],P.restore.on?['After restore',(pl.exact?'':'≈ ')+`${pl.cw}×${pl.ch}`]:null,P.magnify.on?['Base (before Magnify)',`${pl.bw}×${pl.bh}`]:null,['Final',`${pl.fw}×${pl.fh}`],pl.capped?['Note','Capped by max output']:null].filter(Boolean);
+    else if(id==='magnify')rows=[['Tiles',`${pl.tiles.length} (${pl.cols}×${pl.rows})`],['Tile in → out',pl.tiles.length?`${pl.tiles[0].w}×${pl.tiles[0].h} → ${pl.tiles[0].w*2}×${pl.tiles[0].h*2}`:'—'],['Model','FLUX Vision Upscaler · captioned per tile'],['Seams',`${pl.O*2} px feather at output`]];
+    else if(id==='export'){rows=OUT&&OUT.full?[['Result',`${OUT.w}×${OUT.h}`],['Time',OUT.secs+' s'],['Spent',money(OUT.cost)]]:[['Result','Run first']];const b=$('#bSave2');if(b)b.disabled=!(OUT&&OUT.full);}
+    f.innerHTML=rows.map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join('');
+  }
+  if(c){const k=pl.cost,rows=[];
+    if(P.restore.on)rows.push(['Restore · '+M[P.restore.model].name,pl.rCached?'cached':money(k.restore)]);
+    rows.push(['Upscale · '+M[P.upscale.model].name,pl.useBase?(pl.bCached?'cached':money(k.base)):'free']);
+    if(P.magnify.on)rows.push([`Magnify · ${pl.tiles.length} tile${pl.tiles.length>1?'s':''}`,money(k.magnify)]);
+    c.innerHTML=rows.map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join('')+`<dt class="tot">Estimated per run</dt><dd class="tot">${money(k.total)}</dd>`;}
 }
 function buildWidget(s,w){
-  const el=document.createElement('div');el.className='w';el.dataset.k=w.k;const id=`w-${s.id}-${w.k}`;
+  const el=document.createElement('div');el.className='w';el.dataset.k=w.k;const id=`w-${s.id}-${w.k}`;const g=s.id;
   const hint=w.hint?`<div class="hint">${w.hint}</div>`:'';
   if(w.type==='range'){
     el.innerHTML=`<label class="lab" for="${id}"><span>${w.label}</span><output></output></label><input type="range" id="${id}" min="${w.min}" max="${w.max}" step="${w.step}">${hint}`;
     const inp=el.querySelector('input');
-    inp.addEventListener('input',()=>{P[w.g||s.id][w.k]=+inp.value;paintRange(el,s,w);changed(s.id,true);});
-    inp.addEventListener('change',()=>changed(s.id));
-    el.querySelector('label').addEventListener('dblclick',()=>{P[w.g||s.id][w.k]=DEF[w.g||s.id][w.k];syncWidgets(s);changed(s.id);});
+    inp.addEventListener('input',()=>{P[g][w.k]=+inp.value;paintRange(el,s,w);changed(g,true);});
+    inp.addEventListener('change',()=>changed(g));
+    el.querySelector('label').addEventListener('dblclick',()=>{P[g][w.k]=DEF[g][w.k];syncWidgets(s);changed(g);});
   }else if(w.type==='seg'){
     el.innerHTML=`<div class="lab"><span>${w.label}</span></div><div class="seg" role="radiogroup" aria-label="${w.label}">${w.options.map(o=>`<button role="radio" data-v="${o[0]}">${o[1]}</button>`).join('')}</div>${hint}`;
-    el.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{P[w.g||s.id][w.k]=typeof w.options[0][0]==='number'?+b.dataset.v:b.dataset.v;syncWidgets(s);changed(s.id);}));
+    el.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{P[g][w.k]=typeof w.options[0][0]==='number'?+b.dataset.v:b.dataset.v;syncWidgets(s);changed(g);}));
   }else if(w.type==='select'){
     el.innerHTML=`<label class="lab" for="${id}"><span>${w.label}</span></label><select class="sel" id="${id}">${w.options.map(o=>`<option value="${o[0]}">${o[1]}</option>`).join('')}</select>${hint}`;
-    const se=el.querySelector('select');se.addEventListener('change',()=>{P[w.g||s.id][w.k]=se.value;syncWidgets(s);changed(s.id);});
+    const se=el.querySelector('select');se.addEventListener('change',()=>{P[g][w.k]=se.value;syncWidgets(s);changed(g);});
   }else if(w.type==='cards'){
-    el.innerHTML=`<div class="cards" role="radiogroup" aria-label="Upscale model">${w.options.map(o=>`<button class="card" role="radio" data-v="${o[0]}"><div><span>${o[1]}</span><small>${o[2]}</small></div><i></i></button>`).join('')}</div>`;
-    el.querySelectorAll('.card').forEach(b=>b.addEventListener('click',()=>{const was=P.model.method;P[w.g||s.id][w.k]=b.dataset.v;syncWidgets(s);changed(s.id);if(NEURAL(b.dataset.v))warmModel();if(DIFF(b.dataset.v)&&tok()&&!CLOUD.schema)connectCloud(false);if(DIFF(was)!==DIFF(b.dataset.v)&&UI.tab==='model'){const t=$('#panel').scrollTop;renderPanel();$('#panel').scrollTop=t;}}));
+    el.innerHTML=`<div class="cards" role="radiogroup" aria-label="Model">${w.options.map(o=>`<button class="card" role="radio" data-v="${o}"><div><span>${M[o].name}</span><span class="tagc">${M[o].tag}</span><small>${M[o].desc}</small></div><i></i></button>`).join('')}</div>`;
+    el.querySelectorAll('.card').forEach(b=>b.addEventListener('click',()=>{P[g][w.k]=b.dataset.v;syncWidgets(s);changed(g);}));
   }else if(w.type==='text'){
-    el.innerHTML=`<label class="lab" for="${id}"><span>${w.label}</span></label><textarea id="${id}" rows="${w.rows||2}" spellcheck="false"></textarea>${hint}`;
-    const ta=el.querySelector('textarea');ta.addEventListener('input',()=>{P[w.g||s.id][w.k]=ta.value;save();});ta.addEventListener('change',()=>changed(s.id));
-    el.querySelector('label').addEventListener('dblclick',()=>{P[w.g||s.id][w.k]=DEF[w.g||s.id][w.k];syncWidgets(s);changed(s.id);});
-  }else if(w.type==='enum'){
-    const sp=CLOUD.schema&&CLOUD.schema[w.f],opts=sp&&sp.enum;
-    el.innerHTML=`<label class="lab" for="${id}"><span>${w.label}</span></label><select class="sel" id="${id}" ${opts?'':'disabled'}><option value="">${opts?'Model default'+(sp.default!=null?' · '+esc(sp.default):''):'Connect your account to load options'}</option>${(opts||[]).map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join('')}</select>${hint}`;
-    const se=el.querySelector('select');se.addEventListener('change',()=>{P[w.g||s.id][w.k]=se.value;changed(s.id);});
-  }else if(w.type==='cloud'){
-    el.innerHTML=`<div class="box"><h4>Replicate account</h4><div class="seed"><input id="tokIn" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste your API token (r8_…)"><button class="btn sm" id="tokSave">Connect</button></div><div class="hint" id="tokState"></div><div class="hint">Create a token at <a href="https://replicate.com/account/api-tokens" target="_blank" rel="noopener">replicate.com/account/api-tokens</a>. It stays on this device and is only sent to your own Upres server function, which forwards it to Replicate. Runs are billed to your Replicate account.</div></div>`;
-    const inp=el.querySelector('#tokIn');inp.value=tok();
-    el.querySelector('#tokSave').addEventListener('click',async()=>{setTok(inp.value.trim());CLOUD.schema=null;await connectCloud(true);});
-    paintTok();
+    el.innerHTML=`<label class="lab" for="${id}"><span>${w.label}</span></label><textarea id="${id}" rows="${w.rows||2}" placeholder="${esc(w.ph||'')}"></textarea>${hint}`;
+    const ta=el.querySelector('textarea');ta.addEventListener('input',()=>{P[g][w.k]=ta.value;save();});ta.addEventListener('change',()=>changed(g));
   }else if(w.type==='switch'){
     el.innerHTML=`<div class="row"><span>${w.label}</span><button class="sw" role="switch" aria-label="${w.label}"></button></div>`;
-    el.querySelector('.sw').addEventListener('click',()=>{P[w.g||s.id][w.k]=!P[w.g||s.id][w.k];syncWidgets(s);save();drawGrid();});
+    el.querySelector('.sw').addEventListener('click',()=>{P[g][w.k]=!P[g][w.k];syncWidgets(s);changed(g);});
   }else if(w.type==='seed'){
     el.innerHTML=`<label class="lab" for="${id}"><span>Seed</span></label><div class="seed"><input id="${id}" type="number" inputmode="numeric" min="0"><button class="btn sm" aria-label="Random seed">Random</button></div><div class="lab"><span>After each run</span></div><div class="seg" role="radiogroup" aria-label="Seed after each run"><button role="radio" data-v="fixed">Keep</button><button role="radio" data-v="increment">Increment</button><button role="radio" data-v="randomize">Randomize</button></div>`;
-    const inp=el.querySelector('input');inp.addEventListener('change',()=>{P.creative.seed=(Math.max(0,Math.floor(+inp.value||0)))>>>0;changed('creative');});
-    el.querySelector('.seed .btn').addEventListener('click',()=>{P.creative.seed=rseed();syncWidgets(s);changed('creative');});
-    el.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>{P.creative.seedMode=b.dataset.v;syncWidgets(s);save();}));
+    const inp=el.querySelector('input');inp.addEventListener('change',()=>{P[g].seed=(Math.max(0,Math.floor(+inp.value||0))%2147483647);changed(g);});
+    el.querySelector('.seed .btn').addEventListener('click',()=>{P[g].seed=rseed();syncWidgets(s);changed(g);});
+    el.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>{P[g].seedMode=b.dataset.v;syncWidgets(s);save();}));
   }
   return el;
 }
-const rseed=()=>Math.floor(Math.random()*4294967295)>>>0;
-function paintRange(el,s,w){const v=P[w.g||s.id][w.k],i=el.querySelector('input');el.querySelector('output').textContent=w.fmt?w.fmt(v):v;i.style.setProperty('--p',((v-w.min)/(w.max-w.min)*100)+'%');el.classList.toggle('mod',v!==DEF[w.g||s.id][w.k]);}
+const rseed=()=>Math.floor(Math.random()*2147483646);
+function paintRange(el,s,w){const v=P[s.id][w.k],i=el.querySelector('input');el.querySelector('output').textContent=w.fmt?w.fmt(v):v;i.style.setProperty('--p',((v-w.min)/(w.max-w.min)*100)+'%');el.classList.toggle('mod',v!==DEF[s.id][w.k]);}
 function syncWidgets(s){
   const pn=$('#panel');
   (s.widgets||[]).forEach(w=>{
-    const el=pn.querySelector(`.w[data-k="${w.k}"]`);if(!el)return;const v=P[w.g||s.id][w.k];
+    const el=pn.querySelector(`.w[data-k="${w.k}"]`);if(!el)return;const v=P[s.id][w.k];
     if(w.type==='range'){el.querySelector('input').value=v;paintRange(el,s,w);}
     else if(w.type==='seg')el.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-checked',String(b.dataset.v)===String(v)));
     else if(w.type==='select')el.querySelector('select').value=v;
     else if(w.type==='cards')el.querySelectorAll('.card').forEach(b=>b.setAttribute('aria-checked',b.dataset.v===v));
-    else if(w.type==='switch')el.querySelector('.sw').setAttribute('aria-checked',!!v);
     else if(w.type==='text'){const ta=el.querySelector('textarea');if(document.activeElement!==ta)ta.value=v;}
-    else if(w.type==='enum'){const se=el.querySelector('select');se.value=v||'';if(se.value!==String(v||''))se.value='';}
-    else if(w.type==='seed'){el.querySelector('input').value=P.creative.seed;el.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-checked',b.dataset.v===P.creative.seedMode));}
+    else if(w.type==='switch')el.querySelector('.sw').setAttribute('aria-checked',!!v);
+    else if(w.type==='seed'){el.querySelector('input').value=P[s.id].seed;el.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-checked',b.dataset.v===P[s.id].seedMode));}
     if(w.when)el.hidden=!w.when(P);
-    if(w.type==='enum'&&CLOUD.schema&&!CLOUD.schema[w.f])el.hidden=true;
   });
 }
 let liveT=0;
 function changed(id,live){
   save();const s=STEPS.find(x=>x.id===id);if(s)(s.widgets||[]).forEach(w=>{if(w.when){const el=$('#panel').querySelector(`.w[data-k="${w.k}"]`);if(el)el.hidden=!w.when(P);}});
-  if(live){clearTimeout(liveT);liveT=setTimeout(()=>refresh(true),90);}else refresh();
+  if(live){clearTimeout(liveT);liveT=setTimeout(refresh,90);}else refresh();
 }
 
 /* ---------- source ---------- */
@@ -917,27 +925,25 @@ function buildSource(body){
   const d=document.createElement('div');d.className='sec';
   d.innerHTML=`<div class="src"><img id="thumb" alt=""><div><div class="nm" id="imgName"></div><div class="dm" id="imgDims"></div></div></div>
   <div class="btnrow"><button class="btn sm" id="bPick">Choose photo</button><button class="btn sm" id="bSample">Use example</button></div>
-  <div class="hint">You can also drop or paste an image. Nothing leaves your device.</div>
-  <div class="box" id="intentBox" hidden><h4>Auto-tune with Claude</h4><textarea id="intent" placeholder="Describe the result: e.g. faithful and crisp product shot, or moody 35mm night film with heavy grain"></textarea><div class="btnrow"><button class="btn sm" id="bTune">Tune all steps</button><button class="btn sm" id="bTuneStop" hidden>Stop</button></div><div id="aiOut"></div></div>`;
+  <div class="hint">You can also drop or paste an image. Inputs larger than ${INPUT_MAX} px on the long side are reduced before sending.</div>`;
   body.appendChild(d);
   d.querySelector('#bPick').addEventListener('click',()=>$('#fileIn').click());
-  d.querySelector('#bSample').addEventListener('click',()=>setImage(makeSample(),'night-run',true));
-  d.querySelector('#bTune').addEventListener('click',autoTune);
-  d.querySelector('#bTuneStop').addEventListener('click',()=>INTENT.ctl&&INTENT.ctl.abort());
-  d.querySelector('#intentBox').hidden=!INTENT.sample;
-  if(INTENT.last)showAI();
+  d.querySelector('#bSample').addEventListener('click',()=>setImage(makeSample(),'old-street',true));
   fillSource();
 }
 function fillSource(){
   if(!$('#imgName')||!IMG)return;
   $('#imgName').textContent=IMG.name+(IMG.sample?' (example image)':'');
   $('#imgDims').textContent=`${IMG.w}×${IMG.h} · ${(IMG.w*IMG.h/1e6).toFixed(2)} MP`;
-  const t=document.createElement('canvas'),k=128/Math.max(IMG.w,IMG.h);t.width=Math.max(1,Math.round(IMG.w*k));t.height=Math.max(1,Math.round(IMG.h*k));t.getContext('2d').drawImage(IMG.src,0,0,t.width,t.height);$('#thumb').src=t.toDataURL('image/jpeg',.85);
+  const t=canvasOf(IMG.src,Math.max(1,Math.round(IMG.w*128/Math.max(IMG.w,IMG.h))),Math.max(1,Math.round(IMG.h*128/Math.max(IMG.w,IMG.h))));$('#thumb').src=t.toDataURL('image/jpeg',.85);
 }
 function setImage(src,name,sample){
   if(RUN)cancelRun(true);
   IMG={src,w:src.naturalWidth||src.width,h:src.naturalHeight||src.height,name,id:++imgSeq,sample:!!sample};
-  OUT=null;previewRect=null;outCv.hidden=true;fillSource();geo=null;refresh();fitView();
+  OUT=null;previewRect=null;CACHE.restore=null;CACHE.base=null;outCv.hidden=true;
+  const s=canvasOf(IMG.src,Math.min(IMG.w,2048*Math.min(1,IMG.w/Math.max(IMG.w,IMG.h))|0||1),Math.min(IMG.h,2048*Math.min(1,IMG.h/Math.max(IMG.w,IMG.h))|0||1));
+  srcCv.width=s.width;srcCv.height=s.height;srcCv.getContext('2d').drawImage(s,0,0);
+  fillSource();PL=null;refresh();fitView();
 }
 async function loadFile(f){
   if(!f||!/^image\//.test(f.type)){toast('That file is not an image. Use JPEG, PNG, WebP or HEIC.');return;}
@@ -953,248 +959,221 @@ document.addEventListener('dragleave',()=>{if(--dn<=0){dn=0;$('#drop').hidden=tr
 document.addEventListener('dragover',e=>e.preventDefault());
 document.addEventListener('drop',e=>{e.preventDefault();dn=0;$('#drop').hidden=true;const f=e.dataTransfer.files[0];if(f)loadFile(f);});
 
+// Example image: a small, faded, scratched "old print" generated on the fly.
 function makeSample(){
-  const W=480,H=300,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
-  const rnd=(()=>{let a=7;return()=>{a=(a*16807)%2147483647;return a/2147483647;};})();
-  let g=x.createLinearGradient(0,0,0,190);g.addColorStop(0,'#0b0e28');g.addColorStop(.5,'#3e1a4a');g.addColorStop(.85,'#c2363a');g.addColorStop(1,'#ff6a3a');x.fillStyle=g;x.fillRect(0,0,W,190);
-  for(let i=0;i<70;i++){x.fillStyle=`rgba(255,255,255,${.3+rnd()*.7})`;x.fillRect(rnd()*W,rnd()*110,1,1);}
-  const sc=document.createElement('canvas');sc.width=140;sc.height=140;const s=sc.getContext('2d');
-  const sg2=s.createLinearGradient(0,0,0,140);sg2.addColorStop(0,'#ffe066');sg2.addColorStop(.6,'#ff7a2e');sg2.addColorStop(1,'#ff2e5c');s.fillStyle=sg2;s.beginPath();s.arc(70,70,66,0,Math.PI*2);s.fill();
-  s.globalCompositeOperation='destination-out';for(let i=0;i<7;i++)s.fillRect(0,74+i*9,140,2+i*.9);
-  x.drawImage(sc,280,72);
-  x.fillStyle='#24102e';x.beginPath();x.moveTo(0,190);[[40,150],[90,168],[150,120],[210,165],[260,140],[300,172],[360,132],[420,160],[480,128],[480,190]].forEach(p=>x.lineTo(p[0],p[1]));x.fill();
-  x.fillStyle='#150a1c';x.beginPath();x.moveTo(0,190);[[60,172],[120,182],[190,160],[250,184],[330,166],[400,186],[480,170],[480,190]].forEach(p=>x.lineTo(p[0],p[1]));x.fill();
-  x.fillStyle='#09060d';x.fillRect(0,190,W,H-190);
-  x.strokeStyle='rgba(255,46,31,.55)';x.lineWidth=1;
-  for(let i=-12;i<=12;i++){x.beginPath();x.moveTo(W/2+i*8,190);x.lineTo(W/2+i*70,H);x.stroke();}
-  for(let i=0;i<9;i++){const y=190+Math.pow(i/8,2.1)*(H-190);x.beginPath();x.moveTo(0,y);x.lineTo(W,y);x.stroke();}
-  const cx=140,cy=250;
-  x.fillStyle='#050407';x.beginPath();x.moveTo(cx-95,cy);x.lineTo(cx-92,cy-22);x.quadraticCurveTo(cx-60,cy-30,cx-36,cy-31);x.lineTo(cx-12,cy-50);x.lineTo(cx+44,cy-50);x.lineTo(cx+70,cy-30);x.quadraticCurveTo(cx+98,cy-27,cx+102,cy-12);x.lineTo(cx+100,cy);x.closePath();x.fill();
-  x.fillStyle='#2a2238';x.beginPath();x.moveTo(cx-6,cy-46);x.lineTo(cx+40,cy-46);x.lineTo(cx+60,cy-31);x.lineTo(cx-28,cy-31);x.closePath();x.fill();
-  x.strokeStyle='#ff9a6a';x.lineWidth=1;x.beginPath();x.moveTo(cx-92,cy-20);x.quadraticCurveTo(cx-60,cy-28,cx-36,cy-29);x.lineTo(cx+70,cy-28);x.stroke();
-  [[cx-58,cy],[cx+66,cy]].forEach(([wx,wy])=>{x.fillStyle='#000';x.beginPath();x.arc(wx,wy,15,0,7);x.fill();x.strokeStyle='#5a5466';x.lineWidth=2;x.beginPath();x.arc(wx,wy,9,0,7);x.stroke();for(let k=0;k<5;k++){const a=k*1.2566;x.beginPath();x.moveTo(wx,wy);x.lineTo(wx+Math.cos(a)*9,wy+Math.sin(a)*9);x.stroke();}});
-  const tl=x.createRadialGradient(cx-93,cy-14,0,cx-93,cy-14,26);tl.addColorStop(0,'rgba(255,46,31,.95)');tl.addColorStop(1,'rgba(255,46,31,0)');x.fillStyle=tl;x.fillRect(cx-125,cy-40,60,50);
-  x.fillStyle='#ff2e1f';x.fillRect(cx-96,cy-17,6,3);
-  const rf=x.createLinearGradient(0,cy+14,0,H);rf.addColorStop(0,'rgba(255,46,31,.35)');rf.addColorStop(1,'rgba(255,46,31,0)');x.fillStyle=rf;x.fillRect(cx-110,cy+14,220,H-cy-14);
-  x.fillStyle='#f3f1ed';x.font='700 26px Impact, "Arial Narrow", sans-serif';x.fillText('NIGHT RUN',300,262);
-  x.font='9px monospace';x.fillStyle='rgba(243,241,237,.7)';x.fillText('EXAMPLE IMAGE · 480×300',300,278);
-  const id=x.getImageData(0,0,W,H),d=id.data;for(let i=0;i<d.length;i+=4){const n=(rnd()-.5)*14;d[i]+=n;d[i+1]+=n;d[i+2]+=n;}x.putImageData(id,0,0);
+  const W=420,H=300,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+  const rnd=(()=>{let a=11;return()=>{a=(a*16807)%2147483647;return a/2147483647;};})();
+  let g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,'#c9c3b4');g.addColorStop(.55,'#a39c8b');g.addColorStop(1,'#5d574c');x.fillStyle=g;x.fillRect(0,0,W,H);
+  x.fillStyle='#6f6a5f';x.fillRect(0,40,90,200);x.fillRect(330,20,90,230);
+  x.fillStyle='#575247';for(let i=0;i<5;i++)for(let j=0;j<4;j++){x.fillRect(12+j*19,60+i*34,10,18);x.fillRect(342+j*19,40+i*38,10,22);}
+  x.fillStyle='#3d3a33';x.beginPath();x.moveTo(0,240);x.lineTo(W,240);x.lineTo(W,H);x.lineTo(0,H);x.fill();
+  x.strokeStyle='rgba(30,28,24,.5)';x.lineWidth=1;for(let i=-6;i<=6;i++){x.beginPath();x.moveTo(W/2+i*10,240);x.lineTo(W/2+i*60,H);x.stroke();}
+  x.fillStyle='#24221e';x.beginPath();x.moveTo(120,245);x.lineTo(124,214);x.quadraticCurveTo(150,206,170,205);x.lineTo(188,186);x.lineTo(246,186);x.lineTo(268,205);x.quadraticCurveTo(298,208,300,226);x.lineTo(298,245);x.closePath();x.fill();
+  x.fillStyle='#8a8577';x.fillRect(196,191,44,12);
+  [[156,246],[268,246]].forEach(([a,b])=>{x.fillStyle='#111';x.beginPath();x.arc(a,b,13,0,7);x.fill();x.fillStyle='#7a766b';x.beginPath();x.arc(a,b,5,0,7);x.fill();});
+  x.fillStyle='#2b2823';[[100,180],[310,186]].forEach(([a,b])=>{x.beginPath();x.arc(a,b-30,7,0,7);x.fill();x.fillRect(a-7,b-23,14,34);x.fillRect(a-6,b+11,5,22);x.fillRect(a+1,b+11,5,22);});
+  const id=x.getImageData(0,0,W,H),d=id.data;
+  for(let i=0;i<d.length;i+=4){const l=.3*d[i]+.59*d[i+1]+.11*d[i+2],n=(rnd()-.5)*34;const t=l*.86+26+n;d[i]=t*1.08+8;d[i+1]=t*.98;d[i+2]=t*.82;}
+  x.putImageData(id,0,0);
+  x.filter='blur(1.1px)';x.drawImage(c,0,0);x.filter='none';
+  for(let i=0;i<26;i++){x.strokeStyle=`rgba(240,232,214,${.25+rnd()*.5})`;x.lineWidth=.6+rnd()*1.2;x.beginPath();let px=rnd()*W,py=rnd()*H;x.moveTo(px,py);for(let k=0;k<4;k++){px+=(rnd()-.5)*40;py+=rnd()*45;x.lineTo(px,py);}x.stroke();}
+  for(let i=0;i<220;i++){x.fillStyle=rnd()<.5?'rgba(255,250,235,.7)':'rgba(20,18,15,.6)';const r=rnd()*1.6+.3;x.beginPath();x.arc(rnd()*W,rnd()*H,r,0,7);x.fill();}
+  const v=x.createRadialGradient(W/2,H/2,H*.3,W/2,H/2,W*.7);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(40,30,15,.55)');x.fillStyle=v;x.fillRect(0,0,W,H);
+  x.fillStyle='rgba(235,225,200,.35)';x.beginPath();x.moveTo(W-70,0);x.lineTo(W,0);x.lineTo(W,60);x.closePath();x.fill();
   return c;
 }
 
-/* ---------- run ---------- */
+/* ---------- finish (on-device worker pool) ---------- */
+const workerURL=URL.createObjectURL(new Blob([$('#workerSrc').textContent],{type:'text/javascript'}));
+let pool=[],poolVer=-1,workVer=0,slotWait=[];
+function ensurePool(work){
+  const bytes=work.w*work.h*4;
+  let n=Math.min(3,Math.max(1,(navigator.hardwareConcurrency||4)-1));n=Math.max(1,Math.min(n,Math.floor(150e6/bytes)));
+  if(pool.length!==n){pool.forEach(w=>w.terminate());pool=[];for(let i=0;i<n;i++){const w=new Worker(workerURL);w.load=0;w.onmessage=e=>onWorker(w,e.data);w.onerror=e=>{e.preventDefault();if(RUN&&RUN.reject)RUN.reject(new Error('The on-device finish step ran out of memory. Lower the max output.'));};pool.push(w);}poolVer=-1;}
+  if(poolVer!==work.ver){pool.forEach(w=>{const b=work.data.data.buffer.slice(0);w.postMessage({type:'src',buf:b,w:work.w,h:work.h},[b]);});poolVer=work.ver;}
+}
+function killPool(){pool.forEach(w=>w.terminate());pool=[];poolVer=-1;slotWait.forEach(r=>r());slotWait=[];}
 const tmp=document.createElement('canvas'),tctx=tmp.getContext('2d');
-function drawTileBuf(ctx,j,buf){if(tmp.width<j.w||tmp.height<j.h){tmp.width=Math.max(tmp.width,j.w);tmp.height=Math.max(tmp.height,j.h);}tctx.clearRect(0,0,j.w,j.h);tctx.putImageData(new ImageData(new Uint8ClampedArray(buf),j.w,j.h),0,0);ctx.drawImage(tmp,0,0,j.w,j.h,j.x,j.y,j.w,j.h);}
-let slotWait=[];
-function pickWorker(){let b=pool[0];for(const w of pool)if(w.load<b.load)b=w;return b;}
-async function startRun(){
-  if(RUN||!IMG)return;
-  if(P.creative.seedMode==='randomize'){P.creative.seed=rseed();save();if(UI.tab==='creative'||UI.tab==='model')renderPanel();}
-  if(DIFF(P.model.method))return runDiffusion();
-  const neural=NEURAL(P.model.method);
-  geo=computeGeo();ensureWork();
-  const g=geo;
-  const run=RUN={id:++runSeq,geo:g,t0:performance.now(),sig:sigOf(),cancel:false,st:{},total:g.tiles.length,drawIdx:0,label:'Upscaling'};
-  beginRunUI();
-  if(neural){try{await ensureNet();}catch(e){if(RUN===run){RUN=null;resetRunBtn();refresh();}toast('The neural model could not start here ('+(e.message||e)+'). Switch to Lanczos in Model.');return;}}
-  if(RUN!==run||run.cancel)return;
-  outCv.width=g.ow;outCv.height=g.oh;const octx=outCv.getContext('2d');octx.clearRect(0,0,g.ow,g.oh);
-  run.t0=performance.now();
-  try{await runTiles(run,g,jobParams(g),WORK,neural,octx);}catch(e){return;}
-  if(RUN!==run)return;
-  finish(run);
-}
-function beginRunUI(){previewRect=null;if(split)setSplit(false);$('#bRun').textContent='Cancel';$('#bPreview').disabled=true;refreshOut();applyZ();drawGrid();status('Preparing');}
-async function runTiles(run,g,p,work,neural,octx){
-  try{ensurePool(work);}catch(e){fail('Could not start processing workers.');throw e;}
-  Object.assign(run,{geo:g,p,octx,neural,drawIdx:0,total:g.tiles.length,pending:new Map(),st:{},inflight:0});
-  const done=new Promise((res,rej)=>{run.resolve=res;run.reject=rej;});
-  refreshOut();drawGrid();progress();
-  const maxIn=pool.length*2;
-  for(const t of g.tiles){
-    if(RUN!==run||run.cancel)throw new Error('cancelled');
-    stCls(t.id,'a');
-    let patch=null;
-    if(neural){try{patch=await infer(t,g);}catch(e){fail('The GPU ran out of memory on tile '+(t.id+1)+'. Try a smaller tile size.');throw e;}}
-    if(RUN!==run||run.cancel)throw new Error('cancelled');
-    while(run.inflight>=maxIn)await new Promise(r=>slotWait.push(r));
-    if(RUN!==run||run.cancel)throw new Error('cancelled');
-    const w=pickWorker();w.load++;run.inflight++;
-    const job=Object.assign({},t);if(patch)job.patch=patch;
-    w.postMessage({type:'job',run:run.id,job,p},patch?[patch.buf]:[]);
-    if(neural)progress();
-  }
-  return done;
-}
-const localSteps=()=>P.enhance.on||P.modify.on||(P.creative.on&&(P.creative.strength>0||P.creative.grain>0));
-let postVer=1e6;
-async function runDiffusion(){
-  if(!tok()){UI.tab='model';UI.collapsed=false;saveUI();renderPanel();syncTabs();toast('Paste your Replicate token in Model to use diffusion.');return;}
-  geo=computeGeo();ensureWork();const g=geo;
-  const run=RUN={id:++runSeq,geo:g,t0:performance.now(),sig:sigOf(),cancel:false,st:{},total:0,drawIdx:0,cloud:true,label:'Finishing'};
-  beginRunUI();
-  try{
-    const img=await encodeInput(srcCv,0,0,g.sw,g.sh);
-    if(RUN!==run)return;
-    const res=await cloudRun(run,img,g.eff);
-    if(RUN!==run)return;
-    status('<b>Downloading</b> result');
-    const bmp=await loadRemote(res.output[res.output.length-1]);
-    if(RUN!==run)return;
-    outCv.width=g.ow;outCv.height=g.oh;const ctx=outCv.getContext('2d');ctx.imageSmoothingQuality='high';ctx.drawImage(bmp,0,0,g.ow,g.oh);
-    run.cloudSecs=res.predictTime;
-    refreshOut();
-    if(localSteps()){
-      const work={w:g.ow,h:g.oh,data:ctx.getImageData(0,0,g.ow,g.oh),ver:++postVer};
-      const pg=layoutTiles(g.ow,g.oh,g.ow,g.oh),p=jobParams(pg);p.model.method='lanczos';
-      try{await runTiles(run,pg,p,work,false,ctx);}catch(e){return;}
-      if(RUN!==run)return;
-    }
-    finish(run);
-  }catch(e){if(RUN===run){RUN=null;resetRunBtn();$('#prog').style.width='0';refresh();}if(e&&e.message!=='cancelled')toast(e.message||'Diffusion failed.');}
-}
-async function encodeInput(cv,x,y,w,h){
-  let W=w,H=h;
-  for(let attempt=0;attempt<4;attempt++){
-    const c=document.createElement('canvas');c.width=W;c.height=H;const cx=c.getContext('2d');cx.imageSmoothingQuality='high';cx.drawImage(cv,x,y,w,h,0,0,W,H);
-    for(const q of [.92,.86,.8]){
-      const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',q));
-      if(blob&&blob.size<=980000)return await new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=()=>rej(new Error('Could not read the image'));fr.readAsDataURL(blob);});
-    }
-    W=Math.round(W*.82);H=Math.round(H*.82);
-  }
-  throw new Error('The image could not be compressed enough to send. Lower the input size.');
-}
-function diffInput(scale){
-  const d=P.diff,sc=CLOUD.schema||{},inp={prompt:d.prompt,negative_prompt:d.negative,scale_factor:scale,creativity:d.creativity,resemblance:d.resemblance,dynamic:d.dynamic,num_inference_steps:d.steps,sharpen:d.sharpen,seed:P.creative.seed%2147483647};
-  if(d.tw)inp.tiling_width=d.tw;if(d.th)inp.tiling_height=d.th;if(d.sd_model)inp.sd_model=d.sd_model;if(d.scheduler)inp.scheduler=d.scheduler;if(d.handfix)inp.handfix=d.handfix;
-  const of=sc.output_format&&sc.output_format.enum;
-  if(of){const big=geo&&geo.ow*geo.oh>8e6;inp.output_format=big?(of.find(f=>/webp/i.test(f))||of.find(f=>/jpe?g/i.test(f))||of[0]):(of.find(f=>/png/i.test(f))||of[0]);}
-  return inp;
-}
-async function cloudRun(run,dataURL,scale){
-  status('<b>Uploading</b> to Replicate');
-  const p=await api('POST','',{image:dataURL,input:diffInput(scale)});
-  run.pid=p.id;let last=p,t0=performance.now();
-  for(;;){
-    if(RUN!==run||run.cancel)throw new Error('cancelled');
-    const el=Math.round((performance.now()-t0)/1000);
-    if(last.status==='starting')status(`<b>Starting GPU</b> · ${el}s · a cold start can take a minute`);
-    else if(last.status==='processing'){status(`<b>Diffusing</b> · ${last.progress!=null?last.progress+'% · ':''}${el}s`);if(last.progress!=null)$('#prog').style.width=last.progress+'%';}
-    if(last.status==='succeeded'){if(!last.output.length)throw new Error('Replicate finished without an image.');return last;}
-    if(last.status==='failed')throw new Error('Diffusion failed: '+String(last.error||'unknown error').slice(0,160));
-    if(last.status==='canceled')throw new Error('cancelled');
-    await new Promise(r=>setTimeout(r,1500));
-    if(RUN!==run||run.cancel)throw new Error('cancelled');
-    try{last=await api('GET','?id='+encodeURIComponent(run.pid));}catch(e){if(e.status>=500)continue;throw e;}
-  }
-}
-async function loadRemote(url){
-  let blob=null;
-  try{const r=await fetch(url,{mode:'cors'});if(r.ok)blob=await r.blob();}catch{}
-  if(!blob){const r=await fetch('/api/img?u='+encodeURIComponent(url));if(!r.ok)throw new Error('Could not download the result.');blob=await r.blob();}
-  if(window.createImageBitmap){try{return await createImageBitmap(blob);}catch{}}
-  const im=new Image();im.src=URL.createObjectURL(blob);await im.decode();return im;
-}
-/* ---------- cloud account ---------- */
-const CLOUD={schema:null,version:null,err:null,busy:false};
-const tok=()=>{try{return localStorage.getItem('upres.token')||'';}catch{return '';}};
-const setTok=v=>{try{v?localStorage.setItem('upres.token',v):localStorage.removeItem('upres.token');}catch{}};
-async function api(method,qs,body){
-  const h={'x-replicate-token':tok()};if(body)h['content-type']='application/json';
-  let r;try{r=await fetch('/api/diffuse'+(qs||''),{method,headers:h,body:body?JSON.stringify(body):undefined});}catch{const e=new Error('No connection to the Upres server.');e.status=0;throw e;}
-  let j={};try{j=await r.json();}catch{}
-  if(!r.ok){const e=new Error(j.message||('Server error '+r.status));e.code=j.error;e.status=r.status;throw e;}
-  return j;
-}
-function paintTok(){const el=$('#tokState');if(!el)return;el.innerHTML=CLOUD.busy?'Checking…':CLOUD.schema?'<span class="ok">Connected</span> · Clarity Upscaler, latest version':CLOUD.err?esc(CLOUD.err):tok()?'Saved, not verified yet':'Not connected';}
-async function connectCloud(loud){
-  if(!tok()){CLOUD.schema=null;CLOUD.err=null;paintTok();refreshFacts();updateStatus();return;}
-  CLOUD.busy=true;CLOUD.err=null;paintTok();
-  try{const j=await api('GET','?schema=1');CLOUD.schema=j.inputs;CLOUD.version=j.version;if(loud)toast('Replicate connected.');}
-  catch(e){CLOUD.schema=null;CLOUD.err=e.message;if(loud)toast(e.message);}
-  finally{CLOUD.busy=false;}
-  if(UI.tab==='model'){const t=$('#panel').scrollTop;renderPanel();$('#panel').scrollTop=t;}
-  paintTok();updateStatus();
-}
+function drawBuf(ctx,j,buf){if(tmp.width<j.w||tmp.height<j.h){tmp.width=Math.max(tmp.width,j.w);tmp.height=Math.max(tmp.height,j.h);}tctx.clearRect(0,0,j.w,j.h);tctx.putImageData(new ImageData(new Uint8ClampedArray(buf),j.w,j.h),0,0);ctx.drawImage(tmp,0,0,j.w,j.h,j.x,j.y,j.w,j.h);}
 function onWorker(w,m){
   w.load=Math.max(0,w.load-1);
-  if(m.type==='error'){if(m.test){PV&&PV(null,m.message);return;}if(RUN&&m.run===RUN.id)fail('Tile '+(m.job.id+1)+' failed: '+m.message);return;}
-  if(m.type==='test'){PV&&PV(m);return;}
-  if(m.type!=='tile'||!RUN||m.run!==RUN.id)return;
-  RUN.inflight--;const s=slotWait.shift();s&&s();
-  RUN.pending.set(m.job.id,m);
-  while(RUN.pending.has(RUN.drawIdx)){const t=RUN.pending.get(RUN.drawIdx);RUN.pending.delete(RUN.drawIdx);drawTileBuf(RUN.octx,t.job,t.buf);stCls(t.job.id,'d');RUN.drawIdx++;}
-  progress();
-  if(RUN.drawIdx>=RUN.total&&RUN.resolve){const r=RUN.resolve;RUN.resolve=null;r();}
+  const F=RUN&&RUN.fin;if(!F||m.run!==F.id)return;
+  if(m.type==='error'){RUN.reject&&RUN.reject(new Error('Finish failed: '+m.message));return;}
+  F.inflight--;const s=slotWait.shift();s&&s();
+  F.pending.set(m.job.id,m);
+  while(F.pending.has(F.drawIdx)){const t=F.pending.get(F.drawIdx);F.pending.delete(F.drawIdx);drawBuf(F.ctx,t.job,t.buf);stCls(t.job.id,'d');F.drawIdx++;}
+  stageMsg(`<b>Finish</b> · tile ${Math.min(F.drawIdx+1,F.total)} of ${F.total}`);
+  if(F.drawIdx>=F.total&&F.resolve)F.resolve();
 }
-function progress(){
-  const r=RUN;if(!r)return;const done=r.drawIdx,el=(performance.now()-r.t0)/1000;
-  $('#prog').style.width=(done/r.total*100)+'%';
-  const eta=done?el/done*(r.total-done):0;
-  status(`<b>${r.label||'Upscaling'}</b> · tile ${Math.min(done+1,r.total)} of ${r.total} · ${el.toFixed(0)}s${done&&r.total-done?` · ~${Math.ceil(eta)}s left`:''}`);
+async function finishPass(run,ctx,W,H){
+  const f=P.finish,T=1024,O=32;
+  const xs=positions(W,T,O),ys=positions(H,T,O),tiles=[];ys.forEach((y,iy)=>xs.forEach((x,ix)=>tiles.push({id:tiles.length,ix,iy,x,y,w:Math.min(T,W),h:Math.min(T,H)})));
+  const clarityR=8,margin=Math.min(48,Math.max(10,f.clarity?3*clarityR+2:8));
+  const p={ow:W,oh:H,margin,overlap:O,clarityR,model:{method:'lanczos',blend:1},tiles:{feather:'smooth'},
+    enhance:{on:f.sharpen>0||!!f.clarity,denoise:0,sharpen:f.sharpen,radius:1,threshold:2,clarity:f.clarity},
+    modify:{on:true,look:f.look,lookAmt:f.lookAmt,exposure:f.exposure,contrast:f.contrast,highlights:0,shadows:0,saturation:f.saturation,vibrance:0,temp:f.temp,tint:0,fade:0,vignette:f.vignette},
+    creative:{on:f.grain>0,style:'detail',strength:0,size:1,coverage:0,variance:0,grain:f.grain,grainSize:f.grainSize,seed:P.magnify.seed}};
+  const work={w:W,h:H,data:ctx.getImageData(0,0,W,H),ver:++workVer};
+  ensurePool(work);
+  const F=run.fin={id:++runSeq,ctx,total:tiles.length,drawIdx:0,pending:new Map(),inflight:0};
+  run.phase='finish';run.st={};run.phaseTiles=tiles;drawGrid();
+  const done=new Promise((res,rej)=>{F.resolve=res;run.reject=rej;});
+  const maxIn=pool.length*2;
+  for(const t of tiles){
+    if(run.cancel)throw cancelled();
+    while(F.inflight>=maxIn)await new Promise(r=>slotWait.push(r));
+    if(run.cancel)throw cancelled();
+    stCls(t.id,'a');let w=pool[0];for(const x of pool)if(x.load<w.load)w=x;w.load++;F.inflight++;
+    w.postMessage({type:'job',run:F.id,job:Object.assign({},t),p});
+  }
+  await done;
 }
-function finish(r){
-  const secs=((performance.now()-r.t0)/1000).toFixed(1);
-  OUT={ow:r.geo.ow,oh:r.geo.oh,secs,sig:r.sig,seed:r.p?r.p.creative.seed:P.creative.seed,eff:r.geo.eff,full:true};
-  RUN=null;slotWait=[];
-  if(P.creative.seedMode==='increment'){P.creative.seed=(P.creative.seed+1)>>>0;save();if(UI.tab==='creative'||UI.tab==='model')renderPanel();}
-  resetRunBtn();refresh();refreshFacts();$('#prog').style.width='100%';
-  toast((r.cloud?'Diffusion done'+(r.cloudSecs?` (${(+r.cloudSecs).toFixed(0)}s on GPU)`:''):'Done')+'. Hold the eye to compare, or use split view.');
+
+/* ---------- magnify: tiled FLUX ---------- */
+function lockAndBlend(td,rd,t,pl,noRamp){
+  const d=td.data,r=rd.data,n=d.length/4,W=td.width,H=td.height;
+  if(P.magnify.colorLock){
+    const m=[0,0,0],mr=[0,0,0],s=[0,0,0],sr=[0,0,0];
+    for(let i=0;i<d.length;i+=4)for(let c=0;c<3;c++){m[c]+=d[i+c];mr[c]+=r[i+c];}
+    for(let c=0;c<3;c++){m[c]/=n;mr[c]/=n;}
+    for(let i=0;i<d.length;i+=4)for(let c=0;c<3;c++){const a=d[i+c]-m[c],b=r[i+c]-mr[c];s[c]+=a*a;sr[c]+=b*b;}
+    const k=[0,1,2].map(c=>Math.max(.8,Math.min(1.25,Math.sqrt(sr[c]/Math.max(1,s[c])))));
+    for(let i=0;i<d.length;i+=4)for(let c=0;c<3;c++){const v=(d[i+c]-m[c])*k[c]+mr[c];d[i+c]=d[i+c]+(v-d[i+c])*.85;}
+  }
+  const bl=+P.magnify.blend,O2=pl.O*2,ramp=t2=>{if(t2>=1)return 1;if(t2<=0)return 0;return t2*t2*(3-2*t2);};
+  for(let y=0;y<H;y++){const ay=!noRamp&&t.iy>0&&O2>0?ramp((y+.5)/O2):1;for(let x=0;x<W;x++){const ax=!noRamp&&t.ix>0&&O2>0?ramp((x+.5)/O2):1;const i=(y*W+x)*4;
+    if(bl<1){d[i]=r[i]+(d[i]-r[i])*bl;d[i+1]=r[i+1]+(d[i+1]-r[i+1])*bl;d[i+2]=r[i+2]+(d[i+2]-r[i+2])*bl;}
+    d[i+3]=Math.round(ax*ay*255);}}
 }
-function cancelRun(quiet){if(!RUN)return;RUN.cancel=true;if(RUN.cloud&&RUN.pid)api('DELETE','?id='+encodeURIComponent(RUN.pid)).catch(()=>{});killPool();RUN=null;slotWait.forEach(r=>r());slotWait=[];OUT=null;outCv.hidden=true;resetRunBtn();refresh();if(!quiet)toast('Cancelled.');}
-function fail(msg){if(RUN){RUN.cancel=true;killPool();RUN=null;slotWait.forEach(r=>r());slotWait=[];OUT=null;resetRunBtn();}toast(msg);refresh();}
-function resetRunBtn(){$('#bRun').textContent='Upscale';$('#bPreview').disabled=false;}
+function placeTile(ctx,t,bmp,baseC,pl,noRamp){
+  const k=pl.fw/pl.bw,X=Math.round(t.x*k),Y=Math.round(t.y*k),W=Math.min(Math.round(t.w*k),pl.fw-X),H=Math.min(Math.round(t.h*k),pl.fh-Y);
+  const tc=document.createElement('canvas');tc.width=W;tc.height=H;const tx=tc.getContext('2d',{willReadFrequently:true});tx.imageSmoothingQuality='high';tx.drawImage(bmp,0,0,W,H);
+  const rc=document.createElement('canvas');rc.width=W;rc.height=H;const rx=rc.getContext('2d',{willReadFrequently:true});rx.imageSmoothingQuality='high';rx.drawImage(baseC,t.x,t.y,t.w,t.h,0,0,W,H);
+  const td=tx.getImageData(0,0,W,H);lockAndBlend(td,rx.getImageData(0,0,W,H),t,pl,noRamp);tx.putImageData(td,0,0);
+  ctx.drawImage(tc,X,Y);
+  return {x:X,y:Y,w:W,h:H};
+}
+async function magnifyTiles(run,pl,baseC,ctx){
+  const tiles=pl.tiles,k=pl.fw/pl.bw,conc=Math.min(3,tiles.length);
+  run.phase='magnify';run.st={};run.phaseTiles=tiles.map(t=>({id:t.id,x:t.x*k,y:t.y*k,w:t.w*k,h:t.h*k}));drawGrid();
+  let next=0,drawIdx=0,started=0;const pending=new Map(),states={};
+  const msg=()=>{const busy=Object.values(states);const running=busy.filter(s=>s==='running').length,queued=busy.filter(s=>s!=='running').length;stageMsg(`<b>Magnify</b> · ${drawIdx} of ${tiles.length} tiles${running?` · ${running} rendering`:''}${queued?` · ${queued} queued`:''}`);$('#prog').style.width=(drawIdx/tiles.length*100)+'%';};
+  const flush=()=>{while(pending.has(drawIdx)){const {t,bmp}=pending.get(drawIdx);pending.delete(drawIdx);placeTile(ctx,t,bmp,baseC,pl,false);stCls(t.id,'d');drawIdx++;}msg();};
+  const worker=async()=>{
+    while(next<tiles.length){
+      if(run.cancel)throw cancelled();
+      const t=tiles[next++];stCls(t.id,'a');states[t.id]='queued';msg();
+      const img=await encode(baseC,t.x,t.y,t.w,t.h);
+      const res=await falRun(run,M.flux.id,{image_url:img,upscale_factor:2,creativity:+P.magnify.creativity,guidance:+P.magnify.guidance,steps:+P.magnify.steps,seed:(+P.magnify.seed+t.id*7919)%2147483647,enable_safety_checker:false},st=>{states[t.id]=st.status==='IN_PROGRESS'?'running':'queued';msg();});
+      const url=outUrl(res);if(!url)throw new Error('FLUX returned no image for tile '+(t.id+1)+'.');
+      const bmp=await loadRemote(url);delete states[t.id];
+      pending.set(t.id,{t,bmp});flush();
+    }
+  };
+  try{await Promise.all(Array.from({length:conc},worker));}
+  catch(e){run.cancel=true;throw e;}
+}
+
+/* ---------- run ---------- */
+function stageMsg(t){status(t);setLoad($('#status').textContent);}
+function beginRunUI(run){previewRect=null;if(split)setSplit(false);$('#runLbl').textContent='Cancel';$('#runCost').textContent='';$('#bPreview').disabled=true;refreshOut();drawGrid();}
+function endRunUI(){$('#runLbl').textContent='Run';$('#bPreview').disabled=false;setLoad(null);}
+function requireKey(){if(getKey())return true;openAcct();toast('Add your fal key to run the cloud models.');return false;}
+async function getRestored(run,pl){
+  const src=sourceCanvas(pl.iw,pl.ih);
+  if(!P.restore.on)return {canvas:src,url:null,w:pl.iw,h:pl.ih};
+  if(CACHE.restore&&CACHE.restore.key===pl.rKey)return CACHE.restore;
+  const m=M[P.restore.model],extra=P.restore.extra.trim();
+  const prompt=P.restore.mode==='custom'?(extra||PROMPTS.repair):PROMPTS[P.restore.mode]+(extra?' Details: '+extra:'');
+  stageMsg(`<b>Restore</b> · ${m.name} · uploading`);
+  const img=await encode(src,0,0,pl.iw,pl.ih);
+  const input=P.restore.model==='nano'?{prompt,image_urls:[img],resolution:P.restore.res,aspect_ratio:'auto',output_format:'png',num_images:1}:{prompt,image_url:img,output_format:'png',num_images:1,guidance_scale:3.5};
+  const res=await falRun(run,m.id,input,st=>stageMsg(`<b>Restore</b> · ${m.name} · ${qText(st)}`));
+  const url=outUrl(res);if(!url)throw new Error(m.name+' returned no image. It may have refused the photo; try another restore model.');
+  stageMsg(`<b>Restore</b> · downloading`);
+  const bmp=await loadRemote(url);const c=canvasOf(bmp);
+  run.spent+=restoreCost(P);
+  return CACHE.restore={key:pl.rKey,url,canvas:c,w:c.width,h:c.height};
+}
+async function getBase(run,pl,cur){
+  if(CACHE.base&&CACHE.base.key===pl.bKey)return CACHE.base.canvas;
+  let c;
+  if(pl.useBase){
+    const m=M[P.upscale.model];
+    stageMsg(`<b>Upscale</b> · ${m.name} · uploading`);
+    const img=cur.url||await encode(cur.canvas,0,0,cur.w,cur.h);
+    const f=+pl.baseFactor.toFixed(4);
+    const input=P.upscale.model==='seedvr'?{image_url:img,upscale_mode:'factor',upscale_factor:Math.min(10,f),noise_scale:+P.upscale.noise,output_format:'png',enable_safety_checker:false}:{image_url:img,scale_factor:f,creativity:+P.upscale.crystal,output_format:'png',enable_safety_checker:false};
+    const res=await falRun(run,m.id,input,st=>stageMsg(`<b>Upscale</b> · ${m.name} · ${qText(st)}`));
+    const url=outUrl(res);if(!url)throw new Error(m.name+' returned no image.');
+    stageMsg(`<b>Upscale</b> · downloading`);
+    c=canvasOf(await loadRemote(url),pl.bw,pl.bh);
+    run.spent+=m.perMP*pl.bw*pl.bh/1e6;
+  }else c=canvasOf(cur.canvas,pl.bw,pl.bh);
+  CACHE.base={key:pl.bKey,canvas:c};
+  return c;
+}
+async function startRun(){
+  if(RUN||!IMG)return;
+  PL=plan();if(PL.needsKey&&!requireKey())return;
+  if(P.magnify.seedMode==='randomize'){P.magnify.seed=rseed();save();if(UI.tab==='magnify')renderPanel();}
+  const run=RUN={id:++runSeq,cancel:false,reqs:new Set(),t0:performance.now(),spent:0,pl:PL,sig:sigOf(),drawn:false};
+  beginRunUI(run);
+  try{
+    const cur=await getRestored(run,PL);if(run.cancel)throw cancelled();
+    const pl=run.pl=PL=plan();applyZ();
+    const base=await getBase(run,pl,cur);if(run.cancel)throw cancelled();
+    outCv.width=pl.fw;outCv.height=pl.fh;const ctx=outCv.getContext('2d',{willReadFrequently:true});ctx.imageSmoothingQuality='high';ctx.drawImage(base,0,0,pl.fw,pl.fh);
+    run.drawn=true;refreshOut();fitViewIfNeeded();
+    if(P.magnify.on){await magnifyTiles(run,pl,base,ctx);run.spent+=pl.cost.magnify;}
+    if(run.cancel)throw cancelled();
+    if(P.finish.on){stageMsg('<b>Finish</b> · preparing');await finishPass(run,ctx,pl.fw,pl.fh);}
+    const secs=((performance.now()-run.t0)/1000).toFixed(0);
+    OUT={w:pl.fw,h:pl.fh,secs,sig:run.sig,cost:run.spent,full:true};
+    RUN=null;endRunUI();
+    if(P.magnify.seedMode==='increment'){P.magnify.seed=(P.magnify.seed+1)%2147483647;save();if(UI.tab==='magnify')renderPanel();}
+    refresh();$('#prog').style.width='100%';
+    toast(`Done in ${secs}s · spent ${money(run.spent)}. Hold the eye to compare.`);
+  }catch(e){
+    const was=RUN===run;run.cancel=true;run.reqs.forEach(u=>api('DELETE','?cancel='+enc(u)).catch(()=>{}));killPool();
+    if(was){RUN=null;OUT=null;outCv.hidden=true;endRunUI();refresh();}
+    if(!e.cancelled)toast(e.message||'The run failed.');else toast('Cancelled.');
+  }
+}
+function fitViewIfNeeded(){if(Z.atFit)fitView();else{clampZ();applyZ();}}
+function cancelRun(quiet){if(!RUN)return;const r=RUN;r.cancel=true;r.reqs.forEach(u=>api('DELETE','?cancel='+enc(u)).catch(()=>{}));killPool();RUN=null;OUT=null;outCv.hidden=true;endRunUI();refresh();if(!quiet)toast('Cancelled.');}
 $('#bRun').addEventListener('click',()=>RUN?cancelRun():startRun());
 document.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();RUN?cancelRun():startRun();}});
 
-/* ---------- preview tile ---------- */
-let PV=null;
-async function previewCloud(){
-  if(!tok()){UI.tab='model';UI.collapsed=false;saveUI();renderPanel();syncTabs();toast('Paste your Replicate token in Model to use diffusion.');return;}
-  geo=computeGeo();ensureWork();const g=geo;
-  const r=vrect(),c=csize();
-  const cx=(r.w/2-Z.tx)/Z.z/c.w*g.sw,cy=(r.h/2-Z.ty)/Z.z/c.h*g.sh;
-  const side=Math.min(g.sw,g.sh,320),x0=Math.round(Math.max(0,Math.min(g.sw-side,cx-side/2))),y0=Math.round(Math.max(0,Math.min(g.sh-side,cy-side/2)));
-  const run=RUN={id:++runSeq,geo:g,t0:performance.now(),cancel:false,st:{},total:0,drawIdx:0,cloud:true,preview:true};
-  beginRunUI();
-  try{
-    const img=await encodeInput(srcCv,x0,y0,side,side);
-    const res=await cloudRun(run,img,g.eff);
-    if(RUN!==run)return;
-    status('<b>Downloading</b> preview');
-    const bmp=await loadRemote(res.output[res.output.length-1]);
-    if(RUN!==run)return;
-    RUN=null;resetRunBtn();
-    if(!(OUT&&OUT.ow===g.ow&&OUT.oh===g.oh)){outCv.width=g.ow;outCv.height=g.oh;OUT={ow:g.ow,oh:g.oh,full:false};}
-    const k=g.ow/g.sw,ctx=outCv.getContext('2d');ctx.imageSmoothingQuality='high';ctx.drawImage(bmp,x0*k,y0*k,side*k,side*k);
-    previewRect={x:Math.round(x0*k),y:Math.round(y0*k),w:Math.round(side*k),h:Math.round(side*k)};
-    $('#prog').style.width='0';refresh();
-    toast('Preview crop rendered with diffusion. Local steps are not applied to previews.');
-  }catch(e){if(RUN===run){RUN=null;resetRunBtn();$('#prog').style.width='0';refresh();}if(e&&e.message!=='cancelled')toast(e.message||'Preview failed.');}
-}
+/* ---------- preview one tile ---------- */
 async function preview(){
   if(RUN||!IMG)return;
-  if(DIFF(P.model.method))return previewCloud();
-  geo=computeGeo();ensureWork();const g=geo;
-  const r=vrect(),c=csize(),d=devicePixelRatio||1;
-  const cx=((r.w/2-Z.tx)/Z.z)*d*(g.ow/(c.w*d)),cy=((r.h/2-Z.ty)/Z.z)*d*(g.oh/(c.h*d));
-  let t=null,bd=1e18;for(const x of g.tiles){const dd=Math.hypot(x.x+x.w/2-cx,x.y+x.h/2-cy);if(dd<bd){bd=dd;t=x;}}
-  const btn=$('#bPreview');btn.disabled=true;$('#bRun').disabled=true;
+  if(!P.magnify.on){toast('Turn on Magnify to preview a tile.');return;}
+  if(!requireKey())return;
+  const pl=PL=plan();
+  const r=vrect(),c=csize(),cx=(r.w/2-Z.tx)/Z.z/c.w*pl.bw,cy=(r.h/2-Z.ty)/Z.z/c.h*pl.bh;
+  let t=null,bd=1e18;for(const x of pl.tiles){const d=Math.hypot(x.x+x.w/2-cx,x.y+x.h/2-cy);if(d<bd){bd=d;t=x;}}
+  const run=RUN={id:++runSeq,cancel:false,reqs:new Set(),t0:performance.now(),spent:0,pl,drawn:false,preview:true};
+  beginRunUI(run);
   try{
-    status('<b>Preview</b> · rendering one tile');
-    let patch=null;
-    if(NEURAL(P.model.method)){await ensureNet();patch=await infer(t,g);}
-    ensurePool();
-    const res=await new Promise(res=>{PV=(m,err)=>{PV=null;res(m?{m}:{err});};const job=Object.assign({noRamp:true},t);if(patch)job.patch=patch;pool[0].load++;pool[0].postMessage({type:'job',test:true,run:0,job,p:jobParams(g)},patch?[patch.buf]:[]);});
-    if(res.err)throw new Error(res.err);
-    if(!(OUT&&OUT.ow===g.ow&&OUT.oh===g.oh)){outCv.width=g.ow;outCv.height=g.oh;OUT={ow:g.ow,oh:g.oh,full:false};}
-    drawTileBuf(outCv.getContext('2d'),t,res.m.buf);
-    previewRect={x:t.x,y:t.y,w:t.w,h:t.h};
-    refreshOut();drawGrid();updateStatus();
-    toast('Tile '+(t.id+1)+' rendered. Pan elsewhere and preview again, or run Upscale.');
-  }catch(e){toast('Preview failed: '+(e.message||e));updateStatus();}
-  finally{btn.disabled=false;$('#bRun').disabled=false;}
+    let cur,quick=false;
+    if(P.restore.on&&!(CACHE.restore&&CACHE.restore.key===pl.rKey)){cur={canvas:sourceCanvas(pl.iw,pl.ih),url:null,w:pl.iw,h:pl.ih};quick=true;}
+    else cur=await getRestored(run,pl);
+    const base=CACHE.base&&CACHE.base.key===pl.bKey?CACHE.base.canvas:canvasOf(cur.canvas,pl.bw,pl.bh);
+    const fresh=!(OUT&&OUT.w===pl.fw&&OUT.h===pl.fh);
+    const ctx=outCv.getContext('2d',{willReadFrequently:true});
+    if(fresh){outCv.width=pl.fw;outCv.height=pl.fh;ctx.imageSmoothingQuality='high';ctx.drawImage(base,0,0,pl.fw,pl.fh);OUT={w:pl.fw,h:pl.fh,full:false};}
+    run.drawn=true;refreshOut();
+    run.phase='magnify';run.st={};const k=pl.fw/pl.bw;run.phaseTiles=[{id:0,x:t.x*k,y:t.y*k,w:t.w*k,h:t.h*k}];drawGrid();stCls(0,'a');
+    stageMsg('<b>Preview</b> · uploading tile');
+    const img=await encode(base,t.x,t.y,t.w,t.h);
+    const res=await falRun(run,M.flux.id,{image_url:img,upscale_factor:2,creativity:+P.magnify.creativity,guidance:+P.magnify.guidance,steps:+P.magnify.steps,seed:(+P.magnify.seed+t.id*7919)%2147483647,enable_safety_checker:false},st=>stageMsg(`<b>Preview</b> · FLUX · ${qText(st)}`));
+    const bmp=await loadRemote(outUrl(res));
+    if(RUN!==run)return;
+    previewRect=placeTile(ctx,t,bmp,base,pl,true);
+    RUN=null;endRunUI();refresh();
+    toast(`Tile previewed · ${money(t.w*t.h*4/1e6*M.flux.perMP)}${quick?'. Uses the unrestored photo until Restore has run once.':''}`);
+  }catch(e){if(RUN===run){RUN=null;endRunUI();refresh();}run.reqs.forEach(u=>api('DELETE','?cancel='+enc(u)).catch(()=>{}));if(!e.cancelled)toast(e.message||'Preview failed.');}
 }
 $('#bPreview').addEventListener('click',preview);
 
@@ -1202,74 +1181,58 @@ $('#bPreview').addEventListener('click',preview);
 let dlCap;const getDl=async()=>{if(dlCap!==undefined)return dlCap;try{dlCap=window.claude&&claude.use?await claude.use('downloads'):null;}catch{dlCap=null;}return dlCap;};
 async function saveImage(){
   if(!(OUT&&OUT.full))return;
-  const f=P.stitch.format,type=f==='png'?'image/png':f==='jpg'?'image/jpeg':'image/webp';
-  const blob=await new Promise(r=>outCv.toBlob(r,type,P.stitch.quality));
+  const f=P.export.format,type=f==='png'?'image/png':f==='jpg'?'image/jpeg':'image/webp';
+  const blob=await new Promise(r=>outCv.toBlob(r,type,P.export.quality));
   if(!blob){toast('This browser cannot encode '+f.toUpperCase()+'. Try PNG.');return;}
-  const name=`${(IMG.name||'upres').slice(0,40)}_x${+OUT.eff.toFixed(2)}_${OUT.seed}.${f}`;
+  const name=`${(IMG.name||'upres').slice(0,40)}_upres_${OUT.w}x${OUT.h}.${f}`;
   const dl=await getDl();
-  if(dl){try{await dl.save({filename:name,data:blob});toast('Saved '+name);return;}catch(e){if(e&&e.code==='declined')return;if(e&&e.code==='rate_limited'){toast('A save prompt is already open.');return;}}}
+  if(dl){try{await dl.save({filename:name,data:blob});toast('Saved '+name);return;}catch(e){if(e&&e.code==='declined')return;}}
   try{const file=new File([blob],name,{type});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file]});return;}}catch(e){if(e&&e.name==='AbortError')return;}
   try{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);toast('Saved '+name);return;}catch{}
   $('#sheetImg').src=URL.createObjectURL(blob);$('#sheet').hidden=false;
 }
 $('#bSave').addEventListener('click',saveImage);
-$('#sheetClose').addEventListener('click',()=>{$('#sheet').hidden=true;URL.revokeObjectURL($('#sheetImg').src);});
+$('#sheetClose').addEventListener('click',()=>{$('#sheet').hidden=true;});
+
+/* ---------- account ---------- */
+function openAcct(){$('#keyIn').value=getKey();paintKey();$('#acct').hidden=false;setTimeout(()=>$('#keyIn').focus(),50);}
+function paintKey(msg){$('#keyState').textContent=msg||(getKey()?'A key is saved on this device.':'No key saved yet.');}
+$('#keyClose').addEventListener('click',()=>{$('#acct').hidden=true;});
+$('#acct').addEventListener('click',e=>{if(e.target.id==='acct')$('#acct').hidden=true;});
+$('#keyClear').addEventListener('click',()=>{setKey('');$('#keyIn').value='';paintKey('Key removed from this device.');refresh();});
+$('#keySave').addEventListener('click',async()=>{
+  const v=$('#keyIn').value.trim();if(!v){paintKey('Paste a key first.');return;}
+  setKey(v);paintKey('Checking…');
+  try{await api('GET','?check=1');paintKey('Connected. You can close this.');refresh();setTimeout(()=>{$('#acct').hidden=true;},700);}
+  catch(e){paintKey(e.message);if(e.code==='bad_key')setKey('');}
+});
 
 /* ---------- menu ---------- */
 function buildMenu(){
   const pop=$('#menuPop');
-  pop.innerHTML='<h6>Presets</h6>'+PRESETS.map((p,i)=>`<button data-i="${i}"><span>${p.name}</span><small>${p.d}</small></button>`).join('')+'<hr><h6>Workflow</h6><button data-a="export"><span>Export workflow</span><small>All step settings as .json</small></button><button data-a="import"><span>Import workflow</span><small>Load a .json exported here</small></button><button data-a="reset"><span>Reset all steps</span><small>Back to defaults</small></button>';
+  pop.innerHTML='<h6>Account</h6><button data-a="acct"><span>fal.ai key</span><small>Connect or change the key</small></button><hr><h6>Workflow</h6><button data-a="export"><span>Export settings</span><small>All stage settings as .json</small></button><button data-a="import"><span>Import settings</span><small>Load a .json exported here</small></button><button data-a="cache"><span>Clear cached results</span><small>Forces Restore and Upscale to run again</small></button><button data-a="reset"><span>Reset all stages</span><small>Back to defaults</small></button>';
   pop.addEventListener('click',async e=>{
     const b=e.target.closest('button');if(!b)return;$('#menu').open=false;
-    if(b.dataset.i!==undefined){const pr=PRESETS[+b.dataset.i],keep={seed:P.creative.seed,seedMode:P.creative.seedMode,grid:P.tiles.grid,st:clone(P.stitch),max:P.model.maxSide,fit:P.model.fit};P=merge(DEF,pr.p);P.creative.seed=keep.seed;P.creative.seedMode=keep.seedMode;P.tiles.grid=keep.grid;P.stitch=keep.st;P.model.maxSide=keep.max;P.model.fit=keep.fit;applyAll();toast(pr.name);if(NEURAL(P.model.method))warmModel();}
-    else if(b.dataset.a==='reset'){P=clone(DEF);applyAll();toast('All steps reset.');}
+    if(b.dataset.a==='acct')openAcct();
+    else if(b.dataset.a==='reset'){P=clone(DEF);UI.recipe='';saveUI();save();renderPanel();refresh();toast('All stages reset.');}
+    else if(b.dataset.a==='cache'){CACHE.restore=null;CACHE.base=null;refresh();toast('Cached results cleared.');}
     else if(b.dataset.a==='import')$('#wfIn').click();
-    else if(b.dataset.a==='export'){const data=JSON.stringify({app:'Upres',version:2,steps:P},null,2);const dl=await getDl();
-      if(dl){try{await dl.save({filename:'upres-workflow.json',data});toast('Workflow saved.');}catch(e){if(e?.code!=='declined')toast('Saving files is not available here.');}}
-      else{try{await navigator.clipboard.writeText(data);toast('Workflow JSON copied.');}catch{toast('Saving files is not available here.');}}}
+    else if(b.dataset.a==='export'){const data=JSON.stringify({app:'Upres',version:4,stages:P},null,2),blob=new Blob([data],{type:'application/json'}),file=new File([blob],'upres-settings.json',{type:'application/json'});
+      try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file]});return;}}catch(e2){if(e2&&e2.name==='AbortError')return;}
+      try{await navigator.clipboard.writeText(data);toast('Settings copied to clipboard.');}catch{toast('Sharing is not available here.');}}
   });
   document.addEventListener('click',e=>{if($('#menu').open&&!e.target.closest('#menu'))$('#menu').open=false;});
 }
-$('#wfIn').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;try{const j=JSON.parse(await f.text());P=merge(DEF,j.steps||j.nodes||j);applyAll();toast('Workflow loaded.');}catch{toast('That file is not an Upres workflow.');}});
-function applyAll(){save();renderPanel();refresh();}
-
-/* ---------- Claude auto-tune ---------- */
-const INTENT={sample:null,last:null,ctl:null};
-function schemaText(){const L=[];for(const s of STEPS){if(s.bypass)L.push(`${s.id}.on: true | false`);for(const w of s.widgets||[]){if(w.ai===false)continue;if(w.type==='range')L.push(`${s.id}.${w.k}: number ${w.min}..${w.max} (${w.label}${w.hint?'; '+w.hint:''})`);else L.push(`${s.id}.${w.k}: one of ${w.options.map(o=>JSON.stringify(o[0])).join(', ')} (${w.label||'model'}${w.type==='cards'?'; '+w.options.map(o=>o[0]+' = '+o[2]).join('; '):''})`);}}return L.join('\n');}
-function applyAI(params){const ch=[];for(const s of STEPS){const src=params&&params[s.id];if(!src||typeof src!=='object')continue;if(s.bypass&&typeof src.on==='boolean'&&P[s.id].on!==src.on){P[s.id].on=src.on;ch.push(s.id);}for(const w of s.widgets||[]){if(w.ai===false||!(w.k in src))continue;let v=src[w.k];if(w.type==='range'){v=Number(v);if(!isFinite(v))continue;v=+Math.min(w.max,Math.max(w.min,Math.round(v/w.step)*w.step)).toFixed(4);}else{const o=w.options.find(o=>String(o[0])===String(v));if(!o)continue;v=o[0];}if(P[w.g||s.id][w.k]!==v){P[w.g||s.id][w.k]=v;ch.push(s.id+'.'+w.k);}}}return ch;}
-function showAI(){const o=$('#aiOut');if(!o||!INTENT.last)return;o.innerHTML='';const d=document.createElement('div');d.className='ai';const b=document.createElement('b');b.textContent=INTENT.last.name;const t=document.createElement('div');t.textContent=INTENT.last.note;d.append(b,t);o.appendChild(d);}
-async function autoTune(){
-  const s=INTENT.sample;if(!s||!IMG)return;const b=$('#bTune'),st=$('#bTuneStop'),o=$('#aiOut');
-  b.disabled=true;st.hidden=false;o.innerHTML='<div class="hint">Claude is looking at the image…</div>';
-  const c=document.createElement('canvas'),k=Math.min(1,1024/Math.max(IMG.w,IMG.h));c.width=Math.round(IMG.w*k);c.height=Math.round(IMG.h*k);c.getContext('2d').drawImage(IMG.src,0,0,c.width,c.height);
-  const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.85));
-  const intent=$('#intent').value.trim()||'Best high-quality upscale: faithful, clean, sharp, with tasteful texture.';
-  const prompt=`You are tuning a tiled image upscaler that runs on a phone. Step order: model (Real-ESRGAN neural x4 or classic filter) -> tiles -> enhance -> color -> creative (procedural texture re-synthesis per tile) -> export.
-The attached image is the input (downsized for you; the original is ${IMG.w}x${IMG.h}px).
-User intent: ${JSON.stringify(intent)}
-
-Choose settings that suit the content and the intent. Prefer the neural models for real photos and illustration. Keep strengths moderate unless the intent asks for something stylised.
-Reply with only JSON: {"name":"2-3 word look name","note":"one short sentence on what you chose and why","params":{"model":{...},"tiles":{...},"enhance":{...},"modify":{...},"creative":{...}}}
-Include only keys you want to set. Allowed keys:
-${schemaText()}`;
-  INTENT.ctl=new AbortController();
-  try{const res=await s.json(prompt,{images:[blob],signal:INTENT.ctl.signal,cache:false});const ch=applyAI(res&&res.params);INTENT.last={name:String(res?.name||'Claude tune').slice(0,40),note:String(res?.note||'').slice(0,240)+(ch.length?` (${ch.length} settings changed)`:' (no changes)')};save();refresh();renderTabs();showAI();toast('Tuned. Preview a tile or run Upscale.');if(NEURAL(P.model.method))warmModel();}
-  catch(e){const m={cancelled:'Stopped.',not_granted:'Claude access was not allowed for this page.',rate_limited:'Too many requests right now. Try again in a minute.',invalid_json:'Claude replied in an unexpected format. Try again.',image_rejected:'This image could not be sent.',refused:'Claude declined this request. Try different wording.'}[e?.code]||'Auto-tune failed. Try again.';o.innerHTML=`<div class="hint">${m}</div>`;
-    if(['not_granted','sampling_disabled','images_unavailable','capability_disabled','capability_removed','not_declared'].includes(e?.code)){INTENT.sample=null;const bx=$('#intentBox');if(bx)bx.hidden=true;}}
-  finally{b.disabled=false;st.hidden=true;INTENT.ctl=null;}
-}
-(async()=>{if(!window.claude||!claude.use)return;try{const s=await claude.use('sample');if(!s)return;const l=await s.limits().catch(()=>null);if(!l||!l.images)return;INTENT.sample=s;const bx=$('#intentBox');if(bx)bx.hidden=false;}catch{}})();
+$('#wfIn').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;try{const j=JSON.parse(await f.text());P=merge(DEF,j.stages||j);save();renderPanel();refresh();toast('Settings loaded.');}catch{toast('That file is not an Upres settings file.');}});
 
 /* ---------- misc ---------- */
-let tT=0;function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(tT);tT=setTimeout(()=>t.hidden=true,3400);}
-let warmT=0;function warmModel(){clearTimeout(warmT);warmT=setTimeout(()=>{if(!RUN&&NEURAL(P.model.method))ensureNet().then(()=>{refreshFacts();updateStatus();}).catch(e=>toast('Neural model unavailable here: '+(e.message||e)));},400);}
+let tT=0;function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(tT);tT=setTimeout(()=>t.hidden=true,3800);}
 addEventListener('resize',()=>syncTabs());
 
-buildMenu();renderTabs();
-setImage(makeSample(),'night-run',true);
+buildMenu();buildRecipes();renderTabs();
+setImage(makeSample(),'old-street',true);
 renderPanel();
-if(NEURAL(P.model.method))setTimeout(warmModel,600);
-if(DIFF(P.model.method)&&tok())connectCloud(false);
+if(!getKey())setTimeout(()=>status('Add your fal key to run · ⋯ menu → fal.ai key'),400);
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('/sw.js').catch(()=>{});
 })();
 </script>
