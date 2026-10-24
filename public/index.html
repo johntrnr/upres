@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Upres</title>
-<meta name="description" content="Tiled creative upscaler and photo restorer: SeedVR2, FLUX and Nano Banana Pro.">
+<meta name="description" content="Tiled creative upscaler and photo restorer on Replicate: SeedVR2, FLUX and Nano Banana Pro.">
 <meta name="theme-color" content="#0a0a0a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -225,7 +225,7 @@ textarea::placeholder{color:var(--fg-3)}
     <button class="ib" id="bBefore" title="Hold to see the original" aria-label="Hold to see the original"><svg class="i" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
     <button class="ib" id="bSplit" aria-pressed="false" title="Split before / after" aria-label="Split before and after"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/></svg></button>
     <details class="menu" id="menu">
-      <summary class="ib" aria-label="Account and workflow"><svg class="i" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></summary>
+      <summary class="ib" aria-label="Account and settings"><svg class="i" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></summary>
       <div class="pop" id="menuPop"></div>
     </details>
   </header>
@@ -261,12 +261,12 @@ textarea::placeholder{color:var(--fg-3)}
 
 <div class="modal" id="acct" hidden>
   <div class="sheet2" role="dialog" aria-modal="true" aria-labelledby="acctT">
-    <h3 id="acctT">fal.ai account</h3>
-    <p>Upres runs SeedVR2, FLUX and Nano Banana Pro on fal.ai with your own key. Create one at <a href="https://fal.ai/dashboard/keys" target="_blank" rel="noopener">fal.ai/dashboard/keys</a>, and add credit at <a href="https://fal.ai/dashboard/billing" target="_blank" rel="noopener">fal.ai/dashboard/billing</a>.</p>
-    <div class="seed"><input id="keyIn" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste your fal API key"><button class="btn sm" id="keyPaste" hidden>Paste</button></div>
+    <h3 id="acctT">Replicate account</h3>
+    <p>Upres runs SeedVR2, FLUX and Nano Banana Pro on Replicate with your own token. Create one at <a href="https://replicate.com/account/api-tokens" target="_blank" rel="noopener">replicate.com/account/api-tokens</a>, and add credit or a card at <a href="https://replicate.com/account/billing" target="_blank" rel="noopener">replicate.com/account/billing</a>.</p>
+    <div class="seed"><input id="keyIn" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste your Replicate token (r8_…)"><button class="btn sm" id="keyPaste" hidden>Paste</button></div>
     <p id="keyState"></p>
-    <p>The key stays on this device. It is only sent to your own Upres server, which forwards it to fal. Runs are billed to your fal account.</p>
-    <div class="row2"><button class="btn sm" id="keyClear">Remove key</button><button class="btn sm" id="keyClose">Close</button><button class="btn sm pri" id="keySave">Connect</button></div>
+    <p>The token stays on this device. It is only sent to your own Upres server, which forwards it to Replicate. Runs are billed to your Replicate account.</p>
+    <div class="row2"><button class="btn sm" id="keyClear">Remove token</button><button class="btn sm" id="keyClose">Close</button><button class="btn sm pri" id="keySave">Connect</button></div>
   </div>
 </div>
 
@@ -501,22 +501,26 @@ function processTile(job,p){
 (()=>{
 const $=s=>document.querySelector(s);
 const esc=v=>String(v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const LS='upres.v4',LSUI='upres.ui.v4',LSKEY='upres.falkey';
+const LS='upres.v5',LSUI='upres.ui.v5',LSKEY='upres.reptoken';
 const f2=v=>(+v).toFixed(2),sg=v=>(v>0?'+':'')+(+v).toFixed(2),pct=v=>Math.round(v*100)+'%',pxf=v=>(+v)+' px';
 const money=v=>v<=0?'free':v<0.01?'< $0.01':'≈ $'+(v<1?v.toFixed(2):v.toFixed(2));
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 /* ---------- models ---------- */
 const M={
-  nano:{id:'fal-ai/nano-banana-pro/edit',name:'Nano Banana Pro',desc:'Google · keeps faces and identity best · up to 4K',tag:'$0.15'},
-  kontext:{id:'fal-ai/flux-pro/kontext',name:'FLUX.1 Kontext Pro',desc:'Black Forest Labs · fast, natural repair · about 1 MP',tag:'$0.04'},
-  kontextmax:{id:'fal-ai/flux-pro/kontext/max',name:'FLUX.1 Kontext Max',desc:'Black Forest Labs · strongest instruction following · about 1 MP',tag:'$0.08'},
-  seedvr:{id:'fal-ai/seedvr/upscale/image',name:'SeedVR2',desc:'ByteDance · faithful, clears blur and noise',tag:'$0.001/MP',perMP:.001},
-  crystal:{id:'clarityai/crystal-upscaler',name:'Crystal',desc:'ClarityAI · portraits and facial detail',tag:'$0.016/MP',perMP:.016},
-  local:{name:'Local resize',desc:'Free, on device · fine when Magnify does the work',tag:'free',perMP:0},
-  flux:{id:'fal-ai/flux-vision-upscaler',name:'FLUX Vision',perMP:.10},
+  nano:{id:'google/nano-banana-pro',name:'Nano Banana Pro',desc:'Google · keeps faces and identity best · up to 4K',tag:'≈ $0.15'},
+  kontext:{id:'black-forest-labs/flux-kontext-pro',name:'FLUX.1 Kontext Pro',desc:'Black Forest Labs · fast, natural repair · about 1 MP',tag:'$0.04'},
+  kontextmax:{id:'black-forest-labs/flux-kontext-max',name:'FLUX.1 Kontext Max',desc:'Black Forest Labs · strongest instruction following',tag:'$0.08'},
+  restoreapp:{id:'flux-kontext-apps/restore-image',name:'Kontext Restore',desc:'One-tap scratch repair and colorize · ignores Mode and prompt',tag:'≈ $0.04'},
+  seedvr:{id:'zsxkib/seedvr2',name:'SeedVR2',desc:'ByteDance · faithful one-step restoration upscale to about 3.7 MP',tag:'≈ $0.03'},
+  crystal:{id:'philz1337x/crystal-upscaler',name:'Crystal',desc:'ClarityAI · portraits and facial detail',tag:'≈ $0.02/MP'},
+  local:{name:'Local resize',desc:'Free, on device · fine when Magnify does the work',tag:'free'},
+  krea:{id:'black-forest-labs/flux-krea-dev',name:'FLUX.1 Krea [dev]',desc:'Photorealism-tuned FLUX · natural skin, light and texture',tag:'≈ $0.025/tile'},
+  fluxdev:{id:'black-forest-labs/flux-dev',name:'FLUX.1 [dev]',desc:'Classic FLUX · crisper, more stylised detail',tag:'≈ $0.025/tile'},
 };
-const restoreCost=p=>p.restore.model==='nano'?(p.restore.res==='4K'?.30:.15):p.restore.model==='kontext'?.04:.08;
+const TILE_COST=.025;
+const restoreCost=p=>({nano:p.restore.res==='4K'?.30:.15,kontext:.04,kontextmax:.08,restoreapp:.04})[p.restore.model];
+const baseCost=(p,bw,bh)=>p.upscale.model==='seedvr'?(p.upscale.variant==='7b'?.07:.03):p.upscale.model==='crystal'?.02*Math.max(1,bw*bh/1e6):0;
 const PROMPTS={
   repair:'Restore this damaged old photograph. Remove scratches, dust, spots, creases, tears, stains and fading, and repair any missing areas. Keep the exact composition, framing, people, faces, expressions, clothing, objects and lighting. It must still look like a real photograph, not a painting or illustration.',
   color:'Restore this damaged old photograph and colorize it. Remove scratches, dust, spots, creases, tears, stains and fading, and repair any missing areas. Use natural, realistic, historically plausible colors and skin tones. Keep the exact composition, people, faces, expressions, clothing and lighting. It must look like a real color photograph.',
@@ -529,7 +533,7 @@ const LOOKS=[['none','None'],['warm','Warm print'],['chrome','Cold chrome'],['bl
 const STEPS=[
   {id:'source',label:'Source',title:'Source',desc:'The photo to work on. Nothing leaves this device except what you send to the models.',custom:'source'},
   {id:'restore',label:'Restore',title:'Restore',desc:'Repairs damage and can rebuild an old photo as a modern, realistic one. The result is cached, so changing later stages does not run it again.',bypass:true,widgets:[
-    {k:'model',type:'cards',options:['nano','kontext','kontextmax']},
+    {k:'model',type:'cards',options:['nano','kontext','kontextmax','restoreapp']},
     {k:'mode',type:'seg',label:'Mode',options:MODES},
     {k:'extra',type:'text',rows:2,label:'Extra instructions',ph:'e.g. 1950s Paris, red dress, blue Citroën, warm evening light',hint:'Colours, era or details you know. In Custom mode this is the whole prompt.'},
     {k:'res',type:'seg',label:'Output resolution',options:[['1K','1K'],['2K','2K'],['4K','4K · 2× price']],when:p=>p.restore.model==='nano'},
@@ -537,17 +541,20 @@ const STEPS=[
   {id:'upscale',label:'Upscale',title:'Upscale',desc:'Sets the final size. The base model enlarges faithfully; Magnify then re-renders detail tile by tile on top.',widgets:[
     {k:'scale',type:'seg',label:'Final scale',options:[[1.5,'1.5×'],[2,'2×'],[3,'3×'],[4,'4×'],[6,'6×'],[8,'8×']]},
     {k:'model',type:'cards',options:['seedvr','crystal','local']},
-    {k:'noise',type:'range',label:'Noise scale',min:0,max:1,step:.01,fmt:f2,hint:'Higher adds texture, lower stays cleaner.',when:p=>p.upscale.model==='seedvr'},
+    {k:'variant',type:'seg',label:'SeedVR2 model',options:[['3b','3B · fast'],['7b','7B · finest']],when:p=>p.upscale.model==='seedvr'},
+    {k:'colorfix',type:'switch',label:'Wavelet colour fix',when:p=>p.upscale.model==='seedvr'},
     {k:'crystal',type:'range',label:'Creativity',min:0,max:10,step:.5,fmt:v=>(+v).toFixed(1),hint:'0 is faithful. Raise it for more rebuilt facial detail.',when:p=>p.upscale.model==='crystal'},
     {k:'maxSide',type:'seg',label:'Max output, long side',options:[[2048,'2048'],[3072,'3072'],[4096,'4096']]},
   ],custom:'facts'},
-  {id:'magnify',label:'Magnify',title:'Magnify · tiled FLUX',desc:'Splits the image into overlapping tiles. FLUX captions each tile and re-renders it at 2× with new detail; tiles are colour-locked to the base and feather-blended.',bypass:true,widgets:[
-    {k:'creativity',type:'range',label:'Creativity',min:0,max:1,step:.01,fmt:f2,hint:'0.2 subtle · 0.35 balanced · 0.6+ reimagined.'},
+  {id:'magnify',label:'Magnify',title:'Magnify · tiled FLUX',desc:'Splits the image into overlapping tiles. FLUX re-renders every tile at about 1 MP with new detail, guided by your prompt; tiles are colour-locked to the base and feather-blended.',bypass:true,widgets:[
+    {k:'engine',type:'cards',options:['krea','fluxdev']},
+    {k:'prompt',type:'text',rows:2,label:'Tile prompt',ph:'Describe the photo, e.g. old Paris street, 1950s cars, overcast',hint:'Applied to every tile together with a detail booster. Describe the subject, not the composition.'},
+    {k:'creativity',type:'range',label:'Creativity',min:0,max:1,step:.01,fmt:f2,hint:'Denoise strength per tile. 0.25 subtle · 0.35 balanced · 0.5+ reimagined.'},
     {k:'blend',type:'range',label:'Strength',min:0,max:1,step:.05,fmt:pct,hint:'How much of each FLUX tile replaces the base. Lower it to protect faces and text.'},
-    {k:'guidance',type:'range',label:'Guidance',min:1,max:4,step:.1,fmt:v=>(+v).toFixed(1)},
-    {k:'steps',type:'range',label:'Steps',min:4,max:50,step:1,fmt:v=>String(v)},
-    {k:'tile',type:'seg',label:'Tile size',options:[[512,'512'],[768,'768'],[1024,'1024']],hint:'Smaller tiles give each area more attention and finer detail, with more tiles to pay for.'},
-    {k:'overlap',type:'range',label:'Overlap',min:32,max:192,step:16,fmt:pxf,hint:'Shared pixels between neighbouring tiles. More hides seams.'},
+    {k:'guidance',type:'range',label:'Guidance',min:1,max:6,step:.1,fmt:v=>(+v).toFixed(1)},
+    {k:'steps',type:'range',label:'Steps',min:10,max:50,step:1,fmt:v=>String(v)},
+    {k:'tile',type:'seg',label:'Tile size',options:[[384,'384 · finest'],[448,'448'],[512,'512']],hint:'Each tile is rendered at about 1 MP, so smaller tiles get more detail per area, with more tiles to pay for.'},
+    {k:'overlap',type:'range',label:'Overlap',min:32,max:128,step:16,fmt:pxf,hint:'Shared pixels between neighbouring tiles. More hides seams.'},
     {k:'colorLock',type:'switch',label:'Lock tile colours to the base'},
     {k:'grid',type:'switch',label:'Show tile grid',ai:false},
     {k:'seed',type:'seed',label:'Seed'},
@@ -572,18 +579,19 @@ const STEPS=[
 ];
 const DEF={
   restore:{on:false,model:'nano',mode:'realism',extra:'',res:'2K'},
-  upscale:{scale:2,model:'seedvr',noise:.1,crystal:1,maxSide:3072},
-  magnify:{on:true,creativity:.35,blend:1,guidance:1.5,steps:20,tile:1024,overlap:96,colorLock:true,grid:false,seed:20261024,seedMode:'fixed'},
+  upscale:{scale:2,model:'seedvr',variant:'3b',colorfix:true,crystal:1,maxSide:3072},
+  magnify:{on:true,engine:'krea',prompt:'',creativity:.35,blend:1,guidance:3,steps:28,tile:512,overlap:64,colorLock:true,grid:false,seed:20261024,seedMode:'fixed'},
   finish:{on:false,look:'none',lookAmt:1,sharpen:.15,clarity:0,grain:.06,grainSize:1.1,exposure:0,contrast:0,saturation:0,temp:0,vignette:0},
   export:{format:'png',quality:.92},
 };
 const RECIPES=[
-  {id:'oldreal',name:'Old photo → real',p:{restore:{on:true,model:'nano',mode:'realism',res:'2K'},upscale:{scale:2,model:'seedvr',noise:.08},magnify:{on:true,creativity:.3,blend:.9,guidance:1.5,steps:20,tile:1024,overlap:96,colorLock:true},finish:{on:true,look:'none',sharpen:.1,clarity:0,grain:.07,grainSize:1.1}}},
-  {id:'oldfaith',name:'Old photo · faithful',p:{restore:{on:true,model:'nano',mode:'color',res:'2K'},upscale:{scale:2,model:'seedvr',noise:.05},magnify:{on:false},finish:{on:false}}},
-  {id:'portrait',name:'Portrait',p:{restore:{on:false},upscale:{scale:2,model:'crystal',crystal:1},magnify:{on:true,creativity:.22,blend:.8,guidance:1.5,steps:20,tile:1024,overlap:128,colorLock:true},finish:{on:false}}},
-  {id:'land',name:'Landscape detail',p:{restore:{on:false},upscale:{scale:4,model:'seedvr',noise:.15},magnify:{on:true,creativity:.45,blend:1,guidance:2,steps:24,tile:768,overlap:96,colorLock:true},finish:{on:false}}},
-  {id:'faith4',name:'Faithful 4×',p:{restore:{on:false},upscale:{scale:4,model:'seedvr',noise:.05},magnify:{on:false},finish:{on:false}}},
-  {id:'art',name:'AI art · wild',p:{restore:{on:false},upscale:{scale:2,model:'local'},magnify:{on:true,creativity:.7,blend:1,guidance:2.5,steps:28,tile:512,overlap:64,colorLock:false},finish:{on:false}}},
+  {id:'oldreal',name:'Old photo → real',p:{restore:{on:true,model:'nano',mode:'realism',res:'2K'},upscale:{scale:2,model:'seedvr',variant:'3b',colorfix:true},magnify:{on:true,engine:'krea',creativity:.3,blend:.9,guidance:3,steps:28,tile:512,overlap:64,colorLock:true},finish:{on:true,look:'none',sharpen:.1,clarity:0,grain:.07,grainSize:1.1}}},
+  {id:'oldfaith',name:'Old photo · faithful',p:{restore:{on:true,model:'nano',mode:'color',res:'2K'},upscale:{scale:2,model:'seedvr',variant:'7b',colorfix:true},magnify:{on:false},finish:{on:false}}},
+  {id:'quickfix',name:'Quick restore',p:{restore:{on:true,model:'restoreapp'},upscale:{scale:2,model:'seedvr',variant:'3b',colorfix:true},magnify:{on:false},finish:{on:false}}},
+  {id:'portrait',name:'Portrait',p:{restore:{on:false},upscale:{scale:2,model:'crystal',crystal:1},magnify:{on:true,engine:'krea',creativity:.22,blend:.8,guidance:3,steps:28,tile:512,overlap:96,colorLock:true},finish:{on:false}}},
+  {id:'land',name:'Landscape detail',p:{restore:{on:false},upscale:{scale:3,model:'seedvr',variant:'3b',colorfix:true},magnify:{on:true,engine:'krea',creativity:.42,blend:1,guidance:3.5,steps:30,tile:448,overlap:64,colorLock:true},finish:{on:false}}},
+  {id:'faith',name:'Faithful 2×',p:{restore:{on:false},upscale:{scale:2,model:'seedvr',variant:'7b',colorfix:true},magnify:{on:false},finish:{on:false}}},
+  {id:'art',name:'AI art · wild',p:{restore:{on:false},upscale:{scale:2,model:'local'},magnify:{on:true,engine:'fluxdev',creativity:.6,blend:1,guidance:4,steps:30,tile:384,overlap:64,colorLock:false},finish:{on:false}}},
 ];
 const clone=o=>JSON.parse(JSON.stringify(o));
 function merge(base,over){const o=clone(base);for(const n in over||{}){if(!o[n]||typeof over[n]!=='object')continue;for(const k in over[n])if(k in o[n])o[n][k]=over[n][k];}return o;}
@@ -628,42 +636,46 @@ function plan(){
   const tiles=[];
   let ax={starts:[0],L:bw},ay={starts:[0],L:bh};
   if(mag){ax=axisTiles(bw,T,O);ay=axisTiles(bh,T,O);ay.starts.forEach((y,iy)=>ax.starts.forEach((x,ix)=>tiles.push({id:tiles.length,ix,iy,x,y,w:ax.L,h:ay.L})));}
-  const bKey=JSON.stringify([rKey||IMG.id+':'+iw,useBase?P.upscale.model:'local',P.upscale.model==='seedvr'?P.upscale.noise:P.upscale.model==='crystal'?P.upscale.crystal:0,bw,bh]);
-  const c={restore:P.restore.on&&!rCached?restoreCost(P):0,base:useBase&&!(CACHE.base&&CACHE.base.key===bKey)?M[P.upscale.model].perMP*bw*bh/1e6:0,magnify:mag?tiles.reduce((a,t)=>a+t.w*t.h*4,0)/1e6*M.flux.perMP:0};
+  const bKey=JSON.stringify([rKey||IMG.id+':'+iw,useBase?P.upscale.model:'local',P.upscale.model==='seedvr'?[P.upscale.variant,P.upscale.colorfix]:P.upscale.model==='crystal'?P.upscale.crystal:0,bw,bh]);
+  const c={restore:P.restore.on&&!rCached?restoreCost(P):0,base:useBase&&!(CACHE.base&&CACHE.base.key===bKey)?baseCost(P,bw,bh):0,magnify:mag?tiles.length*TILE_COST:0};
   c.total=c.restore+c.base+c.magnify;
   return {iw,ih,cw,ch,exact,rKey,rCached,fw,fh,bw,bh,baseFactor,useBase,bKey,bCached:!!(CACHE.base&&CACHE.base.key===bKey),tiles,T,O,cols:ax.starts.length,rows:ay.starts.length,cost:c,capped:lim<1,needsKey:(P.restore.on&&!rCached)||(useBase&&!(CACHE.base&&CACHE.base.key===bKey))||mag};
 }
-const sigOf=()=>JSON.stringify([IMG&&IMG.id,P.restore,P.upscale,P.magnify.on&&[P.magnify.creativity,P.magnify.blend,P.magnify.guidance,P.magnify.steps,P.magnify.tile,P.magnify.overlap,P.magnify.colorLock,P.magnify.seed],P.finish]);
+const sigOf=()=>JSON.stringify([IMG&&IMG.id,P.restore,P.upscale,P.magnify.on&&[P.magnify.engine,P.magnify.prompt,P.magnify.creativity,P.magnify.blend,P.magnify.guidance,P.magnify.steps,P.magnify.tile,P.magnify.overlap,P.magnify.colorLock,P.magnify.seed],P.finish]);
 
-/* ---------- fal API ---------- */
+/* ---------- Replicate API ---------- */
 async function api(method,qs,body){
-  const h={'x-fal-key':getKey()};if(body)h['content-type']='application/json';
-  let r;try{r=await fetch('/api/fal'+(qs||''),{method,headers:h,body:body?JSON.stringify(body):undefined});}catch{const e=new Error('No connection to the Upres server. Check your network.');e.status=0;throw e;}
+  const h={'x-replicate-token':getKey()};if(body)h['content-type']='application/json';
+  let r;try{r=await fetch('/api/rep'+(qs||''),{method,headers:h,body:body?JSON.stringify(body):undefined});}catch{const e=new Error('No connection to the Upres server. Check your network.');e.status=0;throw e;}
   let j={};try{j=await r.json();}catch{}
   if(!r.ok){const e=new Error(j.message||('Server error '+r.status));e.code=j.error;e.status=r.status;throw e;}
   return j;
 }
 const enc=encodeURIComponent;
-async function falRun(run,model,input,onStatus){
-  const sub=await api('POST','',{model,input});
-  if(!sub.status_url||!sub.response_url)throw new Error('fal did not accept the request.');
-  run.reqs.add(sub.cancel_url);
+async function repRun(run,model,input,onStatus){
+  let st=await api('POST','',{model,input});
+  if(!st.id)throw new Error('Replicate did not accept the request.');
+  run.reqs.add(st.id);
   try{
-    let delay=900;
+    let delay=1000;const t0=performance.now();
     for(;;){
+      onStatus&&onStatus(st,Math.round((performance.now()-t0)/1000));
+      if(st.status==='succeeded'){if(!st.output.length)throw new Error('The model finished without an image.');return st;}
+      if(st.status==='failed')throw new Error(String(st.error||'The model failed.').slice(0,220));
+      if(st.status==='canceled')throw cancelled();
       if(run.cancel)throw cancelled();
-      await sleep(delay);delay=Math.min(2600,delay*1.2);
+      await sleep(delay);delay=Math.min(2500,delay*1.2);
       if(run.cancel)throw cancelled();
-      let st;try{st=await api('GET','?status='+enc(sub.status_url));}catch(e){if(e.status===0||e.status>=500)continue;throw e;}
-      onStatus&&onStatus(st);
-      if(st.status==='COMPLETED')break;
+      try{st=await api('GET','?id='+enc(st.id));}catch(e){if(e.status===0||e.status>=500)continue;throw e;}
     }
-    return await api('GET','?result='+enc(sub.response_url));
-  }finally{run.reqs.delete(sub.cancel_url);}
+  }finally{run.reqs.delete(st.id);}
 }
 const cancelled=()=>{const e=new Error('cancelled');e.cancelled=true;return e;};
-const outUrl=r=>(r&&r.image&&r.image.url)||(r&&r.images&&r.images[0]&&r.images[0].url);
-const qText=st=>st.status==='IN_QUEUE'?('in queue'+(st.queue_position!=null?' · #'+(st.queue_position+1):'')):st.status==='IN_PROGRESS'?'running':'finishing';
+const cancelReqs=run=>run.reqs.forEach(id=>api('DELETE','?id='+enc(id)).catch(()=>{}));
+const outUrl=r=>r&&r.output&&r.output[r.output.length-1];
+const qText=(st,secs)=>st.status==='starting'?`starting GPU · ${secs}s${secs>20?' · cold start, can take a few minutes':''}`:st.status==='processing'?`running${st.progress!=null?' · '+st.progress+'%':''} · ${secs}s`:'finishing';
+const DETAIL=' Ultra-detailed high-resolution photograph, sharp focus, crisp fine detail, natural realistic texture.';
+const tileInput=(img,t)=>({image:img,prompt:(P.magnify.prompt.trim()||'A photograph.')+DETAIL,strength:+P.magnify.creativity,guidance:+P.magnify.guidance,steps:+P.magnify.steps,seed:(+P.magnify.seed+t.id*7919)%2147483647,megapixels:'1'});
 async function loadRemote(url){
   let blob=null;
   if(url.startsWith('data:')){blob=await (await fetch(url)).blob();}
@@ -673,7 +685,7 @@ async function loadRemote(url){
   const im=new Image();im.src=URL.createObjectURL(blob);await im.decode();return im;
 }
 async function encode(cv,x,y,w,h,maxChars){
-  maxChars=maxChars||4200000;let W=w,H=h;
+  maxChars=maxChars||1400000;let W=w,H=h;
   for(let a=0;a<5;a++){
     const c=document.createElement('canvas');c.width=W;c.height=H;const cx=c.getContext('2d');cx.imageSmoothingQuality='high';cx.drawImage(cv,x,y,w,h,0,0,W,H);
     for(const q of [.95,.9,.84]){const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',q));if(blob&&blob.size*1.37<maxChars)return await new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=()=>rej(new Error('Could not read the image'));fr.readAsDataURL(blob);});}
@@ -780,7 +792,7 @@ function updateStatus(){
   if(OUT&&OUT.full&&!stale)status(`<b>Done</b> · ${OUT.secs}s · ${OUT.w}×${OUT.h}`);
   else if(stale)status('Settings changed · run again to update');
   else if(previewRect)status('<b>Preview</b> · one tile magnified');
-  else status(PL&&PL.needsKey&&!getKey()?'Add your fal key to run':'Ready');
+  else status(PL&&PL.needsKey&&!getKey()?'Add your Replicate token to run':'Ready');
   $('#prog').style.width=OUT&&OUT.full&&!stale?'100%':'0';
 }
 function refresh(){
@@ -856,7 +868,7 @@ function refreshFacts(){
   if(!PL)return;const pl=PL,id=UI.tab,f=$('#facts'),c=$('#costs');
   if(f){let rows=[];
     if(id==='upscale')rows=[['Working input',`${pl.iw}×${pl.ih}`],P.restore.on?['After restore',(pl.exact?'':'≈ ')+`${pl.cw}×${pl.ch}`]:null,P.magnify.on?['Base (before Magnify)',`${pl.bw}×${pl.bh}`]:null,['Final',`${pl.fw}×${pl.fh}`],pl.capped?['Note','Capped by max output']:null].filter(Boolean);
-    else if(id==='magnify')rows=[['Tiles',`${pl.tiles.length} (${pl.cols}×${pl.rows})`],['Tile in → out',pl.tiles.length?`${pl.tiles[0].w}×${pl.tiles[0].h} → ${pl.tiles[0].w*2}×${pl.tiles[0].h*2}`:'—'],['Model','FLUX Vision Upscaler · captioned per tile'],['Seams',`${pl.O*2} px feather at output`]];
+    else if(id==='magnify')rows=[['Tiles',`${pl.tiles.length} (${pl.cols}×${pl.rows})`],['Tile in → out',pl.tiles.length?`${pl.tiles[0].w}×${pl.tiles[0].h} → ${pl.tiles[0].w*2}×${pl.tiles[0].h*2}`:'—'],['Rendered at','about 1 MP per tile'],['Engine',M[P.magnify.engine].name],['Seams',`${pl.O*2} px feather at output`]];
     else if(id==='export'){rows=OUT&&OUT.full?[['Result',`${OUT.w}×${OUT.h}`],['Time',OUT.secs+' s'],['Spent',money(OUT.cost)]]:[['Result','Run first']];const b=$('#bSave2');if(b)b.disabled=!(OUT&&OUT.full);}
     f.innerHTML=rows.map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join('');
   }
@@ -1054,17 +1066,17 @@ function placeTile(ctx,t,bmp,baseC,pl,noRamp){
   return {x:X,y:Y,w:W,h:H};
 }
 async function magnifyTiles(run,pl,baseC,ctx){
-  const tiles=pl.tiles,k=pl.fw/pl.bw,conc=Math.min(3,tiles.length);
+  const tiles=pl.tiles,k=pl.fw/pl.bw,conc=Math.min(4,tiles.length);
   run.phase='magnify';run.st={};run.phaseTiles=tiles.map(t=>({id:t.id,x:t.x*k,y:t.y*k,w:t.w*k,h:t.h*k}));drawGrid();
   let next=0,drawIdx=0,started=0;const pending=new Map(),states={};
-  const msg=()=>{const busy=Object.values(states);const running=busy.filter(s=>s==='running').length,queued=busy.filter(s=>s!=='running').length;stageMsg(`<b>Magnify</b> · ${drawIdx} of ${tiles.length} tiles${running?` · ${running} rendering`:''}${queued?` · ${queued} queued`:''}`);$('#prog').style.width=(drawIdx/tiles.length*100)+'%';};
+  const msg=()=>{const busy=Object.values(states);const running=busy.filter(s=>s==='running').length,queued=busy.filter(s=>s!=='running').length;stageMsg(`<b>Magnify</b> · ${drawIdx} of ${tiles.length} tiles${running?` · ${running} rendering`:''}${queued?` · ${queued} starting`:''}`);$('#prog').style.width=(drawIdx/tiles.length*100)+'%';};
   const flush=()=>{while(pending.has(drawIdx)){const {t,bmp}=pending.get(drawIdx);pending.delete(drawIdx);placeTile(ctx,t,bmp,baseC,pl,false);stCls(t.id,'d');drawIdx++;}msg();};
   const worker=async()=>{
     while(next<tiles.length){
       if(run.cancel)throw cancelled();
       const t=tiles[next++];stCls(t.id,'a');states[t.id]='queued';msg();
       const img=await encode(baseC,t.x,t.y,t.w,t.h);
-      const res=await falRun(run,M.flux.id,{image_url:img,upscale_factor:2,creativity:+P.magnify.creativity,guidance:+P.magnify.guidance,steps:+P.magnify.steps,seed:(+P.magnify.seed+t.id*7919)%2147483647,enable_safety_checker:false},st=>{states[t.id]=st.status==='IN_PROGRESS'?'running':'queued';msg();});
+      const res=await repRun(run,M[P.magnify.engine].id,tileInput(img,t),st=>{states[t.id]=st.status==='processing'?'running':'queued';msg();});
       const url=outUrl(res);if(!url)throw new Error('FLUX returned no image for tile '+(t.id+1)+'.');
       const bmp=await loadRemote(url);delete states[t.id];
       pending.set(t.id,{t,bmp});flush();
@@ -1078,7 +1090,7 @@ async function magnifyTiles(run,pl,baseC,ctx){
 function stageMsg(t){status(t);setLoad($('#status').textContent);}
 function beginRunUI(run){previewRect=null;if(split)setSplit(false);$('#runLbl').textContent='Cancel';$('#runCost').textContent='';$('#bPreview').disabled=true;refreshOut();drawGrid();}
 function endRunUI(){$('#runLbl').textContent='Run';$('#bPreview').disabled=false;setLoad(null);}
-function requireKey(){if(getKey())return true;openAcct();toast('Add your fal key to run the cloud models.');return false;}
+function requireKey(){if(getKey())return true;openAcct();toast('Add your Replicate token to run the cloud models.');return false;}
 async function getRestored(run,pl){
   const src=sourceCanvas(pl.iw,pl.ih);
   if(!P.restore.on)return {canvas:src,url:null,w:pl.iw,h:pl.ih};
@@ -1087,8 +1099,8 @@ async function getRestored(run,pl){
   const prompt=P.restore.mode==='custom'?(extra||PROMPTS.repair):PROMPTS[P.restore.mode]+(extra?' Details: '+extra:'');
   stageMsg(`<b>Restore</b> · ${m.name} · uploading`);
   const img=await encode(src,0,0,pl.iw,pl.ih);
-  const input=P.restore.model==='nano'?{prompt,image_urls:[img],resolution:P.restore.res,aspect_ratio:'auto',output_format:'png',num_images:1}:{prompt,image_url:img,output_format:'png',num_images:1,guidance_scale:3.5};
-  const res=await falRun(run,m.id,input,st=>stageMsg(`<b>Restore</b> · ${m.name} · ${qText(st)}`));
+  const input={image:img,prompt};if(P.restore.model==='nano')input.resolution=P.restore.res;
+  const res=await repRun(run,m.id,input,(st,sec)=>stageMsg(`<b>Restore</b> · ${m.name} · ${qText(st,sec)}`));
   const url=outUrl(res);if(!url)throw new Error(m.name+' returned no image. It may have refused the photo; try another restore model.');
   stageMsg(`<b>Restore</b> · downloading`);
   const bmp=await loadRemote(url);const c=canvasOf(bmp);
@@ -1103,12 +1115,12 @@ async function getBase(run,pl,cur){
     stageMsg(`<b>Upscale</b> · ${m.name} · uploading`);
     const img=cur.url||await encode(cur.canvas,0,0,cur.w,cur.h);
     const f=+pl.baseFactor.toFixed(4);
-    const input=P.upscale.model==='seedvr'?{image_url:img,upscale_mode:'factor',upscale_factor:Math.min(10,f),noise_scale:+P.upscale.noise,output_format:'png',enable_safety_checker:false}:{image_url:img,scale_factor:f,creativity:+P.upscale.crystal,output_format:'png',enable_safety_checker:false};
-    const res=await falRun(run,m.id,input,st=>stageMsg(`<b>Upscale</b> · ${m.name} · ${qText(st)}`));
+    const input=P.upscale.model==='seedvr'?{image:img,variant:P.upscale.variant,colorfix:!!P.upscale.colorfix,steps:1,guidance:1}:{image:img,scale:f,creativity:+P.upscale.crystal};
+    const res=await repRun(run,m.id,input,(st,sec)=>stageMsg(`<b>Upscale</b> · ${m.name} · ${qText(st,sec)}`));
     const url=outUrl(res);if(!url)throw new Error(m.name+' returned no image.');
     stageMsg(`<b>Upscale</b> · downloading`);
     c=canvasOf(await loadRemote(url),pl.bw,pl.bh);
-    run.spent+=m.perMP*pl.bw*pl.bh/1e6;
+    run.spent+=baseCost(P,pl.bw,pl.bh);
   }else c=canvasOf(cur.canvas,pl.bw,pl.bh);
   CACHE.base={key:pl.bKey,canvas:c};
   return c;
@@ -1135,13 +1147,13 @@ async function startRun(){
     refresh();$('#prog').style.width='100%';
     toast(`Done in ${secs}s · spent ${money(run.spent)}. Hold the eye to compare.`);
   }catch(e){
-    const was=RUN===run;run.cancel=true;run.reqs.forEach(u=>api('DELETE','?cancel='+enc(u)).catch(()=>{}));killPool();
+    const was=RUN===run;run.cancel=true;cancelReqs(run);killPool();
     if(was){RUN=null;OUT=null;outCv.hidden=true;endRunUI();refresh();}
     if(!e.cancelled)toast(e.message||'The run failed.');else toast('Cancelled.');
   }
 }
 function fitViewIfNeeded(){if(Z.atFit)fitView();else{clampZ();applyZ();}}
-function cancelRun(quiet){if(!RUN)return;const r=RUN;r.cancel=true;r.reqs.forEach(u=>api('DELETE','?cancel='+enc(u)).catch(()=>{}));killPool();RUN=null;OUT=null;outCv.hidden=true;endRunUI();refresh();if(!quiet)toast('Cancelled.');}
+function cancelRun(quiet){if(!RUN)return;const r=RUN;r.cancel=true;cancelReqs(r);killPool();RUN=null;OUT=null;outCv.hidden=true;endRunUI();refresh();if(!quiet)toast('Cancelled.');}
 $('#bRun').addEventListener('click',()=>RUN?cancelRun():startRun());
 document.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();RUN?cancelRun():startRun();}});
 
@@ -1167,13 +1179,13 @@ async function preview(){
     run.phase='magnify';run.st={};const k=pl.fw/pl.bw;run.phaseTiles=[{id:0,x:t.x*k,y:t.y*k,w:t.w*k,h:t.h*k}];drawGrid();stCls(0,'a');
     stageMsg('<b>Preview</b> · uploading tile');
     const img=await encode(base,t.x,t.y,t.w,t.h);
-    const res=await falRun(run,M.flux.id,{image_url:img,upscale_factor:2,creativity:+P.magnify.creativity,guidance:+P.magnify.guidance,steps:+P.magnify.steps,seed:(+P.magnify.seed+t.id*7919)%2147483647,enable_safety_checker:false},st=>stageMsg(`<b>Preview</b> · FLUX · ${qText(st)}`));
+    const res=await repRun(run,M[P.magnify.engine].id,tileInput(img,t),(st,sec)=>stageMsg(`<b>Preview</b> · ${M[P.magnify.engine].name} · ${qText(st,sec)}`));
     const bmp=await loadRemote(outUrl(res));
     if(RUN!==run)return;
     previewRect=placeTile(ctx,t,bmp,base,pl,true);
     RUN=null;endRunUI();refresh();
-    toast(`Tile previewed · ${money(t.w*t.h*4/1e6*M.flux.perMP)}${quick?'. Uses the unrestored photo until Restore has run once.':''}`);
-  }catch(e){if(RUN===run){RUN=null;endRunUI();refresh();}run.reqs.forEach(u=>api('DELETE','?cancel='+enc(u)).catch(()=>{}));if(!e.cancelled)toast(e.message||'Preview failed.');}
+    toast(`Tile previewed · ${money(TILE_COST)}${quick?'. Uses the unrestored photo until Restore has run once.':''}`);
+  }catch(e){if(RUN===run){RUN=null;endRunUI();refresh();}cancelReqs(run);if(!e.cancelled)toast(e.message||'Preview failed.');}
 }
 $('#bPreview').addEventListener('click',preview);
 
@@ -1196,21 +1208,21 @@ $('#sheetClose').addEventListener('click',()=>{$('#sheet').hidden=true;});
 
 /* ---------- account ---------- */
 function openAcct(){$('#keyIn').value=getKey();paintKey();$('#acct').hidden=false;setTimeout(()=>$('#keyIn').focus(),50);}
-function paintKey(msg){$('#keyState').textContent=msg||(getKey()?'A key is saved on this device.':'No key saved yet.');}
+function paintKey(msg){$('#keyState').textContent=msg||(getKey()?'A token is saved on this device.':'No token saved yet.');}
 $('#keyClose').addEventListener('click',()=>{$('#acct').hidden=true;});
 $('#acct').addEventListener('click',e=>{if(e.target.id==='acct')$('#acct').hidden=true;});
-$('#keyClear').addEventListener('click',()=>{setKey('');$('#keyIn').value='';paintKey('Key removed from this device.');refresh();});
+$('#keyClear').addEventListener('click',()=>{setKey('');$('#keyIn').value='';paintKey('Token removed from this device.');refresh();});
 $('#keySave').addEventListener('click',async()=>{
-  const v=$('#keyIn').value.trim();if(!v){paintKey('Paste a key first.');return;}
+  const v=$('#keyIn').value.trim();if(!v){paintKey('Paste a token first.');return;}
   setKey(v);paintKey('Checking…');
-  try{await api('GET','?check=1');paintKey('Connected. You can close this.');refresh();setTimeout(()=>{$('#acct').hidden=true;},700);}
-  catch(e){paintKey(e.message);if(e.code==='bad_key')setKey('');}
+  try{const a=await api('GET','?check=1');paintKey('Connected'+(a.account?' as '+a.account:'')+'. You can close this.');refresh();setTimeout(()=>{$('#acct').hidden=true;},700);}
+  catch(e){paintKey(e.message);if(e.code==='bad_token')setKey('');}
 });
 
 /* ---------- menu ---------- */
 function buildMenu(){
   const pop=$('#menuPop');
-  pop.innerHTML='<h6>Account</h6><button data-a="acct"><span>fal.ai key</span><small>Connect or change the key</small></button><hr><h6>Workflow</h6><button data-a="export"><span>Export settings</span><small>All stage settings as .json</small></button><button data-a="import"><span>Import settings</span><small>Load a .json exported here</small></button><button data-a="cache"><span>Clear cached results</span><small>Forces Restore and Upscale to run again</small></button><button data-a="reset"><span>Reset all stages</span><small>Back to defaults</small></button>';
+  pop.innerHTML='<h6>Account</h6><button data-a="acct"><span>Replicate token</span><small>Connect or change the token</small></button><hr><h6>Workflow</h6><button data-a="export"><span>Export settings</span><small>All stage settings as .json</small></button><button data-a="import"><span>Import settings</span><small>Load a .json exported here</small></button><button data-a="cache"><span>Clear cached results</span><small>Forces Restore and Upscale to run again</small></button><button data-a="reset"><span>Reset all stages</span><small>Back to defaults</small></button>';
   pop.addEventListener('click',async e=>{
     const b=e.target.closest('button');if(!b)return;$('#menu').open=false;
     if(b.dataset.a==='acct')openAcct();
@@ -1232,7 +1244,7 @@ addEventListener('resize',()=>syncTabs());
 buildMenu();buildRecipes();renderTabs();
 setImage(makeSample(),'old-street',true);
 renderPanel();
-if(!getKey())setTimeout(()=>status('Add your fal key to run · ⋯ menu → fal.ai key'),400);
+if(!getKey())setTimeout(()=>status('Add your Replicate token to run · ⋯ menu → Replicate token'),400);
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('/sw.js').catch(()=>{});
 })();
 </script>

@@ -1,8 +1,8 @@
 import type { Config } from "@netlify/functions"
 
-// Streams a finished fal output image back to the app (same origin, so it can be drawn
-// to a canvas and saved). Only fal's media hosts are allowed.
-const ALLOWED = [/(^|\.)fal\.media$/, /^storage\.googleapis\.com$/, /(^|\.)fal\.run$/, /(^|\.)fal\.ai$/]
+// Streams a finished Replicate output image back to the app (same origin, so it can be drawn
+// to a canvas and saved). Only Replicate delivery hosts are allowed.
+const ALLOWED = [/(^|\.)replicate\.delivery$/, /(^|\.)replicate\.com$/]
 
 export default async (req: Request) => {
   const u = new URL(req.url).searchParams.get("u")
