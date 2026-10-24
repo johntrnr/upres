@@ -159,6 +159,7 @@ const slim = (p: any) => ({ id: p.id, status: p.status, output: outputs(p.output
 export default async (req: Request) => {
   try {
     const url = new URL(req.url)
+    if (req.method === "GET" && url.searchParams.has("ping")) return json({ ok: true, server: "upres", time: Date.now() })
     const token = tokenFrom(req)
     if (!token) return json({ error: "no_token", message: "Add your Replicate token in Account." }, 401)
 

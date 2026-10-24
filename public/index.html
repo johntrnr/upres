@@ -266,7 +266,7 @@ textarea::placeholder{color:var(--fg-3)}
     <div class="seed"><input id="keyIn" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste your Replicate token (r8_…)"><button class="btn sm" id="keyPaste" hidden>Paste</button></div>
     <p id="keyState"></p>
     <p>The token stays on this device. It is only sent to your own Upres server, which forwards it to Replicate. Runs are billed to your Replicate account.</p>
-    <div class="row2"><button class="btn sm" id="keyClear">Remove token</button><button class="btn sm" id="keyClose">Close</button><button class="btn sm pri" id="keySave">Connect</button></div>
+    <div class="row2"><button class="btn sm" id="keyTest">Test connection</button><button class="btn sm" id="keyClear">Remove token</button><button class="btn sm" id="keyClose">Close</button><button class="btn sm pri" id="keySave">Connect</button></div>
   </div>
 </div>
 
@@ -599,8 +599,11 @@ let P;try{P=merge(DEF,JSON.parse(localStorage.getItem(LS)||'{}'));}catch{P=clone
 let UI;try{UI=Object.assign({tab:'upscale',collapsed:false,recipe:''},JSON.parse(localStorage.getItem(LSUI)||'{}'));}catch{UI={tab:'upscale',collapsed:false,recipe:''};}
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P));}catch{}};
 const saveUI=()=>{try{localStorage.setItem(LSUI,JSON.stringify(UI));}catch{}};
-const getKey=()=>{try{return localStorage.getItem(LSKEY)||'';}catch{return '';}};
-const setKey=v=>{try{v?localStorage.setItem(LSKEY,v):localStorage.removeItem(LSKEY);}catch{}};
+// Tokens are plain ASCII. Pasting on a phone can bring spaces, line breaks or invisible characters,
+// and a header containing any of them makes the browser refuse the request outright.
+const cleanToken=v=>String(v||'').replace(/[^\x21-\x7E]/g,'');
+const getKey=()=>{try{return cleanToken(localStorage.getItem(LSKEY));}catch{return '';}};
+const setKey=v=>{try{v=cleanToken(v);v?localStorage.setItem(LSKEY,v):localStorage.removeItem(LSKEY);}catch{}};
 
 /* ---------- state ---------- */
 let IMG=null,imgSeq=0,PL=null,RUN=null,OUT=null,runSeq=0,split=false,splitX=.5,showBefore=false,previewRect=null;
@@ -645,10 +648,25 @@ const sigOf=()=>JSON.stringify([IMG&&IMG.id,P.restore,P.upscale,P.magnify.on&&[P
 
 /* ---------- Replicate API ---------- */
 async function api(method,qs,body){
-  const h={'x-replicate-token':getKey()};if(body)h['content-type']='application/json';
-  let r;try{r=await fetch('/api/rep'+(qs||''),{method,headers:h,body:body?JSON.stringify(body):undefined});}catch{const e=new Error('No connection to the Upres server. Check your network.');e.status=0;throw e;}
-  let j={};try{j=await r.json();}catch{}
-  if(!r.ok){const e=new Error(j.message||('Server error '+r.status));e.code=j.error;e.status=r.status;throw e;}
+  const h={};const k=getKey();if(k)h['x-replicate-token']=k;if(body)h['content-type']='application/json';
+  const payload=body?JSON.stringify(body):undefined;
+  const retries=method==='POST'?0:2;
+  let r,lastErr;
+  for(let a=0;a<=retries;a++){
+    try{r=await fetch('/api/rep'+(qs||''),{method,headers:h,body:payload,cache:'no-store'});break;}
+    catch(e){lastErr=e;if(a<retries)await sleep(700*(a+1));}
+  }
+  if(!r){
+    const why=lastErr&&lastErr.message?lastErr.message:'unknown error';
+    const e=new Error(navigator.onLine===false?'You are offline. Reconnect and try again.':`Could not reach the Upres server (${why}). Open ⋯ → Replicate token → Test connection.`);
+    e.status=0;e.cause=lastErr;throw e;
+  }
+  let j={},text='';try{text=await r.text();j=text?JSON.parse(text):{};}catch{j={};}
+  if(!r.ok){
+    let msg=j.message;
+    if(!msg)msg=r.status===404?'The Upres server function was not found (404). The latest deploy may still be publishing; try again in a minute.':r.status===413?'The image is too large to send.':r.status>=500?`The Upres server failed (${r.status}). Try again.`:`Server error ${r.status}.`;
+    const e=new Error(msg);e.code=j.error;e.status=r.status;throw e;
+  }
   return j;
 }
 const enc=encodeURIComponent;
@@ -1212,8 +1230,19 @@ function paintKey(msg){$('#keyState').textContent=msg||(getKey()?'A token is sav
 $('#keyClose').addEventListener('click',()=>{$('#acct').hidden=true;});
 $('#acct').addEventListener('click',e=>{if(e.target.id==='acct')$('#acct').hidden=true;});
 $('#keyClear').addEventListener('click',()=>{setKey('');$('#keyIn').value='';paintKey('Token removed from this device.');refresh();});
+$('#keyTest').addEventListener('click',async()=>{
+  paintKey('Testing…');
+  let ok=false;
+  try{const r=await fetch('/api/rep?ping=1',{cache:'no-store'});const j=await r.json().catch(()=>({}));ok=r.ok&&j.ok;if(!ok){paintKey(`Server answered ${r.status}${j.message?': '+j.message:''}.`);return;}}
+  catch(e){paintKey(`Cannot reach the Upres server (${e.message||e}). Check the connection or try again in a minute.`);return;}
+  if(!getKey()){paintKey('Server reachable. Now paste your Replicate token and tap Connect.');return;}
+  try{const a=await api('GET','?check=1');paintKey('Server reachable · token valid'+(a.account?' · '+a.account:'')+'.');}
+  catch(e){paintKey('Server reachable · '+e.message);}
+});
 $('#keySave').addEventListener('click',async()=>{
-  const v=$('#keyIn').value.trim();if(!v){paintKey('Paste a token first.');return;}
+  const raw=$('#keyIn').value,v=cleanToken(raw);if(!v){paintKey('Paste a token first.');return;}
+  if(!/^r8_[A-Za-z0-9]{20,}$/.test(v))paintKey('That does not look like a Replicate token (they start with r8_). Checking anyway…');
+  $('#keyIn').value=v;
   setKey(v);paintKey('Checking…');
   try{const a=await api('GET','?check=1');paintKey('Connected'+(a.account?' as '+a.account:'')+'. You can close this.');refresh();setTimeout(()=>{$('#acct').hidden=true;},700);}
   catch(e){paintKey(e.message);if(e.code==='bad_token')setKey('');}
